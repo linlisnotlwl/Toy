@@ -39,7 +39,10 @@ public:
 		// if we want to use other construct,
 		// we can add another level of indirection with template specialization.
 		std::call_once(flag, []() { m_instance_ptr.reset(new T()); });
-        assert(m_instance_ptr != nullptr);
+
+        // Note: It could be nullptr after destructing.
+        // So it will occur some bug in multi-threads because of the uncertain sequence of destructing.
+        assert(m_instance_ptr != nullptr);  
         return *m_instance_ptr;
     }
 private:
@@ -49,7 +52,7 @@ private:
 };
 template<typename T>
 typename Singleton<T>::Ptr Singleton<T>::m_instance_ptr = nullptr;
-//std::unique_ptr<T> Singleton<T>::m_instance_ptr = nullptr;
+
 
 //// (3) eager initialize : initialize at the very first beginning
 //template<typename T>

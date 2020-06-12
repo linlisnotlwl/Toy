@@ -29,3 +29,6 @@ target_link_libraries (toy_log.out ${CMAKE_THREAD_LIBS_INIT})
 
 #add_executable(toy_json.out test_json.cpp ${DIR_SRCS})
 #target_link_libraries(toy_json.out libtoyjson.a)
+
+#add_executable(toy_buffer.out test_buffer.cpp ${DIR_SRCS})
+#target_link_libraries (toy_buffer.out ${CMAKE_THREAD_LIBS_INIT})

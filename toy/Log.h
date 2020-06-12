@@ -12,7 +12,12 @@
 #include <sstream>	// for stringstream ostringstream
 #include <ctime>	// for struct tm, time()
 #include <thread>
+#include <vector>
+#include <condition_variable>
+
+
 #include "Singleton.h"
+#include "Buffer.h"
 
 #ifdef _WIN32
 	#define _CRT_SECURE_NO_WARNINGS
@@ -139,7 +144,35 @@ private:
 
 class LogStream
 {
+public:
+	static constexpr size_t BUFFER_SIZE = 4 * 1024;
+	static constexpr size_t WRITE_BUF_SIZE = 128 * 1024;
+	typedef FixBuffer<BUFFER_SIZE> Buffer;
+	typedef std::shared_ptr<Buffer> BufferPtr;
+	LogStream(const std::string & file_name);
+	~LogStream();
+	
+	void append(const char *, size_t len);
+	LogStream & operator<<(std::stringstream &);
+	LogStream & operator<<(std::string &);
+	//LogStream & operator<<(const char *);
+private:
+	void threadFun();
+	void flush();
+	BufferPtr m_cur_buffer;
+	BufferPtr m_next_buffer;
 
+	std::condition_variable m_cv;
+	std::condition_variable m_cv_next_ready;
+	std::mutex m_mutex;
+
+	FILE * m_file;
+	char * m_write_buf;
+
+	std::atomic<bool> m_is_running;
+	int m_wait_seconds;
+
+	std::thread m_thread;
 };
 
 class LogAppender
@@ -171,19 +204,19 @@ class FileAppender : public LogAppender
 {
 public:
 	typedef std::shared_ptr<FileAppender> Ptr;
-	typedef std::ofstream FileOutStream;	// TODO : implement my own stream with special buffers.
+	typedef LogStream FileOutStream;	
 	FileAppender(const std::string &);
 	void log(LogLevel::Level, LogEvent::Ptr) override;
-	/**
-	 * @brief reopen a file
-	 * 	if it is open, close it and then open again.
-	 * 	if not, just open it
-	 * @return true 
-	 * 	reopen success
-	 * @return false 
-	 * 	reopen fail
-	 */
-	bool reopen();
+	//  /**
+	//   * @brief reopen a file
+	//   * 	if it is open, close it and then open again.
+	//   * 	if not, just open it
+	//   * @return true 
+	//   * 	reopen success
+	//   * @return false 
+	//   * 	reopen fail
+	//   */
+	//  bool reopen();
 private:
 	/// where to store the logs
 	std::string m_file_path;

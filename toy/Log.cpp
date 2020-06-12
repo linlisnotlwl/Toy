@@ -1,7 +1,7 @@
 #include "Log.h"
 #include <string> // for std::to_string
-
-
+#include <chrono>
+#include <functional>
 
 namespace Toy
 {
@@ -9,7 +9,7 @@ namespace Toy
 // xx implementation start:
 // xx implementation end.-------------------------------------------<xx>
 
-
+static int count = 0;
 
 // LogLevel implementation start:
 const char * LogLevel::getCStr(LogLevel::Level level)
@@ -139,6 +139,103 @@ std::string LogFormat::generateFormatLog(LogEvent::Ptr event_ptr)
 }
 // LogFormat implementation end.-------------------------------------------<LogFormat>
 
+// LogStream implementation start:
+LogStream::LogStream(const std::string & file_name) 
+	: m_cur_buffer(new Buffer()), m_next_buffer(new Buffer())
+{
+	m_file = fopen(file_name.c_str(), "a+");
+	m_write_buf = new char[WRITE_BUF_SIZE];
+	if(m_write_buf == nullptr)
+	{
+		fprintf(stderr, "new write buffer error\n");
+	}
+	else
+		setbuf(m_file, m_write_buf);
+
+	m_is_running = true;
+	m_thread = std::thread(std::mem_fn(&LogStream::threadFun), this);
+}
+
+LogStream::~LogStream()
+{
+	m_is_running = false;
+	if (m_thread.joinable())
+		m_thread.join();
+	flush();
+	fclose(m_file);
+	delete[] m_write_buf;
+	printf("count = %d\n", count);
+}
+
+void LogStream::append(const char * data, size_t len)
+{
+	assert(len < BUFFER_SIZE);
+	if(!m_is_running)
+		return;
+	std::unique_lock<std::mutex> lock(m_mutex);
+	if(len > m_cur_buffer->getFreeSize())
+	{	
+		swap(m_cur_buffer, m_next_buffer);
+		if(!m_cur_buffer->empty())
+		{
+			fwrite_unlocked(m_cur_buffer->getData(), sizeof(char), m_cur_buffer->getDataSize(), m_file);
+			m_cur_buffer->clear();
+			count++;
+		}
+		m_cur_buffer->append(data, len);
+		m_cv_next_ready.notify_one();
+	}
+	else
+	{
+		m_cur_buffer->append(data, len);
+	}
+}
+
+void LogStream::flush()
+{
+	//std::unique_lock<std::mutex> lock(m_mutex);
+	fwrite_unlocked(m_next_buffer->getData(), sizeof(char), m_next_buffer->getDataSize(), m_file);
+	m_next_buffer->clear();
+	fwrite_unlocked(m_cur_buffer->getData(), sizeof(char), m_cur_buffer->getDataSize(), m_file);
+	m_next_buffer->clear();
+}
+
+LogStream & LogStream::operator<<(std::stringstream & ss)
+{
+	std::string temp = ss.str();
+	append(temp.c_str(), temp.length());
+	return *this;
+}
+
+LogStream & LogStream::operator<<(std::string & str)
+{
+	append(str.c_str(), str.length());
+	return *this;
+}
+
+
+
+void LogStream::threadFun()
+{
+	//using namespace std::chrono_literals; // c++14
+	std::chrono::seconds wait_time(m_wait_seconds);
+	//m_cur_buffer.reset(new Buffer());
+	//m_next_buffer.reset(new Buffer());
+
+	while(m_is_running)
+	{
+		std::unique_lock<std::mutex> lock(m_mutex);
+		if(m_next_buffer->empty())
+			m_cv.wait_for(lock, wait_time, [&](){ return !m_next_buffer->empty(); });
+		if(m_next_buffer->empty())
+			swap(m_next_buffer, m_cur_buffer);
+		fwrite_unlocked(m_next_buffer->getData(), sizeof(char), m_next_buffer->getDataSize(), m_file);
+		m_next_buffer->clear();
+	}	
+	//m_cv.notify();
+}
+// LogStream implementation end.-------------------------------------------<LogStream>
+
 // StdoutAppender implementation start:
 
 void StdoutAppender::log(LogLevel::Level level, LogEvent::Ptr event_ptr)
@@ -153,29 +250,30 @@ void StdoutAppender::log(LogLevel::Level level, LogEvent::Ptr event_ptr)
 // StdoutAppender implementation end.-------------------------------------------<StdoutAppender>
 
 // FileAppender implementation start:
-FileAppender::FileAppender(const std::string &file_path) : m_file_path(file_path)
+FileAppender::FileAppender(const std::string &file_path) 
+	: m_file_path(file_path), m_file_stream(file_path)
 {
-	m_file_stream.open(file_path.c_str(), std::ios_base::out | std::ios_base::ate);
+	
 }
 void FileAppender::log(LogLevel::Level level, LogEvent::Ptr event_ptr)
 {
 	if (level >= m_level)
 	{
-		std::unique_lock<std::mutex> lock(m_mutex_stream);
-		if(m_file_stream.is_open())
-			m_file_stream << m_format_ptr->generateFormatLog(event_ptr);
+		//std::unique_lock<std::mutex> lock(m_mutex_stream);
+		std::string temp = m_format_ptr->generateFormatLog(event_ptr);
+		m_file_stream << temp;
 	}
 }
-bool FileAppender::reopen()
-{
-	std::unique_lock<std::mutex> lock(m_mutex_stream);
-	if (m_file_stream.is_open())
-	{
-		m_file_stream.close();
-	}
-	m_file_stream.open(m_file_path);
-	return m_file_stream.is_open();	
-}
+// bool FileAppender::reopen()
+// {
+// 	std::unique_lock<std::mutex> lock(m_mutex_stream);
+// 	if (m_file_stream.is_open())
+// 	{
+// 		m_file_stream.close();
+// 	}
+// 	m_file_stream.open(m_file_path);
+// 	return m_file_stream.is_open();	
+// }
 // FileAppender implementation end.-------------------------------------------<FileAppender>
 
 // Logger implementation start:
@@ -193,7 +291,8 @@ void Logger::log(LogLevel::Level level, LogEvent::Ptr event_ptr)
 {
 	if (level >= m_level)
 	{
-		std::unique_lock<std::mutex> lock(m_mutex_appenders);
+		//std::unique_lock<std::mutex> lock(m_mutex_appenders); 
+		// make sure you will not change appenders during logging, if not , use the lock
 		for (auto app : m_all_appenders)
 			app->log(level, event_ptr);
 	}

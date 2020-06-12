@@ -73,7 +73,7 @@ void ThreadPool::runningThread()
     while(m_is_running.load(std::memory_order_acquire) == true)
     {
         
-        Task task;
+        Task task = nullptr;
         {
             std::unique_lock<std::mutex> lock(m_queue_mutex);
             if(m_task_queue.empty())
@@ -84,8 +84,6 @@ void ThreadPool::runningThread()
                 task = m_task_queue.front();
                 m_task_queue.pop_front();
             }
-            else
-                task = nullptr;
         }
         if(task)
             task();

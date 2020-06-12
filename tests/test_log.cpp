@@ -5,13 +5,12 @@
 
 Toy::ThreadPool threadpool(4);
 
-constexpr int LOG_NUM = 10;
+constexpr int LOG_NUM = 10 * 10000;
 void testLogThread(Toy::LogLevel::Level level)
 {
 	for (int count = 0; count < LOG_NUM; ++count)
 	{
-		threadpool.start();
-		TOY_LOG_ERROR << level << " HELLO:" << count;
+		TOY_LOG_ERROR << "testLogThread: level = " << level << ",count = " << count;
 	}
 	//printf("%lu done!\n", std::this_thread::get_id());
 }
@@ -60,9 +59,8 @@ int main()
 
 
 	auto start = std::chrono::high_resolution_clock::now();
-	//testLog();
-	testLogUsingThreadPool();
-	TOY_LOG_INFO << "testing";
+	testLog();
+	//testLogUsingThreadPool();
     auto end = std::chrono::high_resolution_clock::now();
 	
     std::cout << "Time: " 
@@ -70,6 +68,6 @@ int main()
         << " us" << std::endl;
 	
 	std::this_thread::sleep_for(std::chrono::milliseconds(5000)); // 等待线程输出所有日志
-	threadpool.shutdownnow();
+	//threadpool.shutdownnow();
     return 0;
 }

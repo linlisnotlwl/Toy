@@ -176,7 +176,7 @@ void LogStream::append(const char * data, size_t len)
 	if(len > m_cur_buffer->getFreeSize())
 	{	
 		swap(m_cur_buffer, m_next_buffer);
-		if(!m_cur_buffer->empty())
+		if(!m_cur_buffer->empty())	// there are data that has not been write 
 		{
 			fwrite_unlocked(m_cur_buffer->getData(), sizeof(char), m_cur_buffer->getDataSize(), m_file);
 			m_cur_buffer->clear();

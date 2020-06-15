@@ -57,7 +57,7 @@ static void test_log_file()
 int main()
 {
 
-
+	
 	auto start = std::chrono::high_resolution_clock::now();
 	testLog();
 	//testLogUsingThreadPool();
@@ -67,7 +67,9 @@ int main()
         << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() 
         << " us" << std::endl;
 	
-	std::this_thread::sleep_for(std::chrono::milliseconds(5000)); // 等待线程输出所有日志
+	//std::this_thread::sleep_for(std::chrono::milliseconds(5000)); // 等待线程输出所有日志
 	//threadpool.shutdownnow();
+
+	// avg : 1.5s, 400000 (str+int) msgs, virtual machine(1 Cpu, 2 core, i7-4720, 1G) 
     return 0;
 }

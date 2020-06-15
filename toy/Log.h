@@ -128,6 +128,12 @@ public:
 	typedef std::shared_ptr<LogFormat> Ptr;
 	LogFormat(const FormatPattern &f_pattern = ALL_ITEM);
 	void init();
+	//Toy::LogFormat::generateFormatLog consumes a lot of CPU time 
+	// especially the Time format and stream
+	// TODO : improve generateFormatLog
+	// Maybe generate format logs in another background threads.
+	// or generate time once per second
+	// or 
 	std::string generateFormatLog(LogEvent::Ptr);
 private:
 	char * getFormatTime(LogEvent::TimeType raw_time) 
@@ -145,7 +151,7 @@ private:
 class LogStream
 {
 public:
-	static constexpr size_t BUFFER_SIZE = 4 * 1024;
+	static constexpr size_t BUFFER_SIZE = 64 * 1024;
 	static constexpr size_t WRITE_BUF_SIZE = 128 * 1024;
 	typedef FixBuffer<BUFFER_SIZE> Buffer;
 	typedef std::shared_ptr<Buffer> BufferPtr;

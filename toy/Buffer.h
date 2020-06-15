@@ -34,6 +34,7 @@ public:
             size_t temp = len - getFreeSize();
             memcpy(m_cur_p, data, temp);
             m_cur_p += temp;
+            //TODO : callback to clean data buffer
             //if(m_callback != nullptr)
                 //m_callback();
             append(data + temp, len - temp);

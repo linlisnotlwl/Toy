@@ -52,6 +52,8 @@ public:
     // array
     size_t getArraySize() const;
     void setArray(JsonVar::Array *);
+    Array * getArray();
+    const Array * getArray() const;
     const JsonVar * getArrayElememt(size_t index) const;
     JsonVar * getArrayElememt(size_t index);
     void addArrayElement(const JsonVar &);

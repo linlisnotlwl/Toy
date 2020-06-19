@@ -1,5 +1,6 @@
 #include <iostream>
 #include <memory> // shared_ptr
+#include <mutex>
 
 
 class Base
@@ -14,9 +15,14 @@ class Derived : public Base
 {
 public:
     virtual void print() { printf("Derived.\n"); }
-    T getVal() { return val; }
+    T getVal() 
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        return val; 
+    }
 
 private:
+    std::mutex mutex;
     T val;
 };
 

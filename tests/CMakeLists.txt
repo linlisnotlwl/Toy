@@ -20,15 +20,15 @@ include_directories ("${PROJECT_SOURCE_DIR}/toy")
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
 # -g3 可以调试宏定义
-#add_compile_options(-std=c++11 -pthread -Wall -O2) #-O0 -g3
+#add_compile_options(-std=c++11 -pthread -Wall) #-O0 -g3 -O2
 find_package (Threads)
-
-
 
 
 add_executable(toy_config.out test_config.cpp ${DIR_SRCS})
 target_link_libraries(toy_config.out libtoyjson.a)
 target_link_libraries (toy_config.out ${CMAKE_THREAD_LIBS_INIT})
+
+
 
 if(false)
 add_executable(toy_cpp.out test_cpp.cpp)

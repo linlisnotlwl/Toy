@@ -1,0 +1,14 @@
+{
+    "LoggerName" : "DefaultLogger",
+    "LogAppender" : [ "StdoutAppender", "FileAppender"],
+    "LogAppenderNum" : 2,
+    "StdoutAppender" : 
+    {
+        "loglevel" : 1
+    },
+    "FileAppender" :
+    {
+        "outputfilename" : "log1.txt",
+        "loglevel" : 2
+    }
+}

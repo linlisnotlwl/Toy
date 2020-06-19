@@ -35,7 +35,7 @@ class LogLevel
 public:
 	enum Level
 	{
-		UNKNOW,
+		UNKNOW = 0,
 		DEBUG,
 		INFO,
 		WARN,
@@ -190,6 +190,7 @@ public:
 	virtual void log(LogLevel::Level, LogEvent::Ptr) = 0;
 	void setLogFormat(LogFormat::Ptr f_ptr) { m_format_ptr = f_ptr; }
 	LogFormat::Ptr getLogFormat() const { return m_format_ptr; }
+	void setLevel(LogLevel::Level level) { m_level = level; }
 protected:
 	LogLevel::Level m_level = LogLevel::Level::DEBUG;
 	LogFormat::Ptr m_format_ptr = nullptr;	// it should be init, otherwise it would be empty(Windbg status)
@@ -211,8 +212,9 @@ class FileAppender : public LogAppender
 public:
 	typedef std::shared_ptr<FileAppender> Ptr;
 	typedef LogStream FileOutStream;	
-	FileAppender(const std::string &);
+	FileAppender(const std::string & file_path = "log.txt");
 	void log(LogLevel::Level, LogEvent::Ptr) override;
+	void setFile(const std::string & file_path) { m_file_path = file_path; }
 	//  /**
 	//   * @brief reopen a file
 	//   * 	if it is open, close it and then open again.
@@ -245,6 +247,7 @@ public:
 	void rmAppender(LogAppender::Ptr);
 	void setLevel(const LogLevel::Level & level) { m_level = level; } 
 	LogLevel::Level getLevel() const { return m_level; } 
+	void setLoggerName(const std::string & name) { m_name = name; }
 	std::string getLoggerName() const { return m_name; }
 private:
 	/// all LogAppenders
@@ -275,13 +278,13 @@ private:
 class LogManager
 {
 public:
-	LogManager();
+	LogManager(const std::string & config_file_name = "log.config.json");
 	~LogManager() = default;
 	Logger::Ptr getLogger() { return m_logger_ptr; }
 private:
 	Logger::Ptr m_logger_ptr;
-	LogAppender::Ptr m_stdappender_ptr;
-	LogAppender::Ptr m_fileappender_ptr;
+	//LogAppender::Ptr m_stdappender_ptr;
+	//LogAppender::Ptr m_fileappender_ptr;
 };
 
 }// namespace Toy

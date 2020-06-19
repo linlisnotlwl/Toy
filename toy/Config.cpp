@@ -20,6 +20,36 @@ Config::~Config()
 {
 }
 
+bool Config::loadConfig(const std::string &file_name)
+{
+    JsonVar jv;
+    if (!Json::loadFile(file_name.c_str(), jv))
+        return false;
+    transformJV2CV(jv, "");
+    return true;
+}
+
+void Config::viewAll()
+{
+    std::string type1(typeid(ConfigVar<double>).name());
+    std::string type2(typeid(ConfigVar<std::string>).name());
+    std::string type3(typeid(ConfigVar<bool>).name());
+	std::unique_lock<std::mutex> lock(s_mutex);
+    for (const auto &cvp : s_config_vars)
+    {
+        std::string type_name(typeid(*cvp.second).name());
+
+        if (type_name == type1)
+            printCV<double>(cvp.second);
+        else if (type_name == type2)
+            printCV<std::string>(cvp.second);
+        else if (type_name == type3)
+            printCV<bool>(cvp.second);
+        else
+            std::cout << type_name << std::endl;
+    }
+}
+
 void Config::transformJV2CV(const JsonVar &jv, std::string str)
 {
     if (str.length() == 0) // avoid those json value that can not be transform

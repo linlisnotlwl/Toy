@@ -3,6 +3,8 @@
 #include <chrono>
 #include <functional>
 
+#include<Config.h>
+
 namespace Toy
 {
 
@@ -348,13 +350,54 @@ void Logger::rmAppender(LogAppender::Ptr app_ptr)
 // Logger implementation end.-------------------------------------------<Logger>
 
 // LogManager implementation start:
-LogManager::LogManager() : m_logger_ptr(std::make_shared<Logger>("main_logger")),
-	m_stdappender_ptr(std::make_shared<Toy::StdoutAppender>()),
-	m_fileappender_ptr(std::make_shared<Toy::FileAppender>("log.txt"))
+LogManager::LogManager(const std::string & config_file_name) 
+	: m_logger_ptr(std::make_shared<Logger>("main_logger"))
 {
-	//m_logger_ptr->addAppender(m_stdappender_ptr);
-	m_logger_ptr->addAppender(m_fileappender_ptr);
+	if(!Config::loadConfig(config_file_name))
+	{
+		//m_logger_ptr->addAppender(std::make_shared<Toy::StdoutAppender>());
+		m_logger_ptr->addAppender(std::make_shared<Toy::FileAppender>("log.txt"));
+	}
+	else
+	{
+		std::string name;
+		if(Config::getValOrZero<std::string>("LoggerName", name))
+			m_logger_ptr->setLoggerName(name);
+		
+		double num = 0;
+		if(Config::getValOrZero<double>("LogAppenderNum", num))
+		{
+			int n = static_cast<int>(num);
+			for(int i = 0; i < n; ++i)
+			{
+				std::string temp = "LogAppender[" + std::to_string(i) + "]";
+				std::string appender;
+				if(Config::getValOrZero<std::string>(temp, appender))
+				{
+					if(appender == "StdoutAppender")
+					{
+						std::shared_ptr<LogAppender> ptr = std::make_shared<StdoutAppender>();
+						double level = 0;
+						if(Config::getValOrZero<double>("StdoutAppender.loglevel", level))
+							ptr->setLevel(static_cast<LogLevel::Level>(level));
+						m_logger_ptr->addAppender(ptr);
+					}
+					else if(appender == "FileAppender")
+					{
+						std::string filename = "log.txt";
+						double level = 0;
+						Config::getValOrZero<std::string>("FileAppender.outputfilename", filename);
+						std::shared_ptr<LogAppender> ptr = std::make_shared<FileAppender>(filename);
+						if(Config::getValOrZero<double>("FileAppender.loglevel", level))
+							ptr->setLevel(static_cast<LogLevel::Level>(level));
+						m_logger_ptr->addAppender(ptr);
+					}
+				}
+			}
+		}
+	}	
 }
+
 // LogManager implementation end.-------------------------------------------<LogManager>
 
 } // namespace Toy

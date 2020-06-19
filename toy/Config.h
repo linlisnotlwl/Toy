@@ -9,6 +9,7 @@
 #include "../lib/Json.h"
 namespace Toy
 {
+// TODO
 class Cast
 {
 public:
@@ -44,12 +45,36 @@ class ConfigVar : public ConfigVarBase
 {
 public:
 	typedef std::shared_ptr<ConfigVar> Ptr;
+	typedef std::function<void (const T & old_val, const T & new_val)> OnChangeCallback;
 	ConfigVar(const std::string & name, const T & val, const std::string & description = "")
 		: ConfigVarBase(name, description), m_val(val) {}
 	~ConfigVar() {}
 
-	T getVal() const { return m_val; }
-	void setVal(const T & val) { m_val = val; }
+	T getVal() // const // lock will change mutex,so can not use lock in const function
+	{ 
+		std::unique_lock<std::mutex> lock(m_mutex_t);
+		return m_val; 
+	}
+	void setVal(const T & val) 
+	{ 
+		std::unique_lock<std::mutex> lock(m_mutex_t);
+		if(val == m_val)
+			return;
+
+		for(auto & cb : m_all_callbacks)
+			cb.second(m_val, val);
+		m_val = val;
+	}
+	void registerCallback(uint64_t id, OnChangeCallback cb)
+	{
+		std::unique_lock<std::mutex> lock(m_mutex_t);
+		m_all_callbacks[id] = cb;
+	}
+	void deleteCallback(uint64_t id)
+	{
+		std::unique_lock<std::mutex> lock(m_mutex_t);
+		m_all_callbacks.erase(id);
+	}
 	virtual std::string toString() override
 	{
 		return std::string();
@@ -61,10 +86,12 @@ public:
 		//TODO
 	}
 
-
 private:
     // Value of ConfigVar
 	T m_val;
+	// id , cb ; Using id because there are not cmp function of OnChangeCallback
+	std::map<uint64_t, OnChangeCallback> m_all_callbacks; 
+	std::mutex m_mutex_t;
 }; // class ConfigVar
 
 class Config
@@ -124,34 +151,40 @@ public:
 		else
 			return nullptr;
 	}
-	static bool loadConfig(const std::string & file_name)
-	{
-		JsonVar jv;
-		if(!Json::loadFile(file_name.c_str(), jv))
-			return false;
-		transformJV2CV(jv, "");
-		return true;
-	}
-	// print all ConfigVar
-	static void viewAll()
-	{
-		std::string type1(typeid(ConfigVar<double>).name());
-		std::string type2(typeid(ConfigVar<std::string>).name());
-		std::string type3(typeid(ConfigVar<bool>).name());
-		for(const auto & cvp : s_config_vars)
-		{
-			std::string type_name(typeid(*cvp.second).name());
 
-			if(type_name == type1)
-				printCV<double>(cvp.second);
-			else if(type_name == type2)
-				printCV<std::string>(cvp.second);
-			else if(type_name == type3)
-				printCV<bool>(cvp.second);
-			else
-				std::cout << type_name << std::endl;
+	/**
+	 * @brief Get the Val if it exists, or get nothing
+	 * 
+	 * @tparam T 
+	 * @param name 
+	 * @param out 
+	 * @return true 
+	 * @return false 
+	 */
+	template<typename T>
+	static bool getValOrZero(const std::string & name, T & out)
+	{
+		auto it = lookup<T>(name);
+		if(it != nullptr)
+		{
+			out = it->getVal();
+			return true;
 		}
+		else
+			return false;
 	}
+
+	/**
+	 * @brief load ConfigVar from Json file
+	 * 
+	 * @param file_name 
+	 * @return true 
+	 * @return false 
+	 */
+	static bool loadConfig(const std::string & file_name);
+
+	// print all ConfigVar
+	static void viewAll();
 private:
 	/**
 	 * @brief transfrom JsonVar to ConfigVar, and store it into ConfigVarMap
@@ -176,3 +209,4 @@ private:
 }; // class Config
 
 } // namespace Toy
+

@@ -24,13 +24,15 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 find_package (Threads)
 
 
+
+add_executable(toy_timewheel.out test_timer.cpp ../toy/Timer.cpp)
+target_link_libraries (toy_timewheel.out ${CMAKE_THREAD_LIBS_INIT})
+
+if(false)
 add_executable(toy_config.out test_config.cpp ${DIR_SRCS})
 target_link_libraries(toy_config.out libtoyjson.a)
 target_link_libraries (toy_config.out ${CMAKE_THREAD_LIBS_INIT})
 
-
-
-if(false)
 add_executable(toy_cpp.out test_cpp.cpp)
 
 add_executable(toy_log.out test_log.cpp ${DIR_SRCS})

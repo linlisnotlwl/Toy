@@ -39,7 +39,7 @@ Tick::Tick()
 }
 
 Tick::Tick(uint64_t expired_tick, CallbackFun cb, int32_t cycle, uint64_t interval)
-	: m_expired_tick(expired_tick), m_cb(cb), m_cycle(cycle), m_interval(interval)
+	: m_cb(cb), m_cycle(cycle), m_interval(interval), m_expired_tick(expired_tick)
 {
 
 }
@@ -64,10 +64,10 @@ void Tick::runTask()
 
 bool Tick::isFinished()
 {
-	if(m_cycle == -1)
+	if(m_cycle < 0)
 		return true;
 	else
-		return m_expired_count >= m_cycle;
+		return m_expired_count >= static_cast<uint32_t>(m_cycle);
 }
 
 void Tick::incExpiredCount()
@@ -81,7 +81,7 @@ void Tick::incExpiredCount()
 
 Wheel::Wheel(uint64_t slot_num, uint64_t slot_interval)
 	: m_slot_num(slot_num), m_slot_interval(slot_interval), 
-	m_cur_slot(0), m_slots(std::vector<SlotType>(slot_num, SlotType())),
+	m_slots(std::vector<SlotType>(slot_num, SlotType())), m_cur_slot(0), 
 	prev(nullptr), next(nullptr)
 {
 
@@ -103,21 +103,20 @@ void Wheel::tick(uint64_t tick)
 		next->tick(tick);
 		return;
 	}
+	
 	if(!m_slots[m_cur_slot].empty())
 	{
 		for(auto it = m_slots[m_cur_slot].begin(); it != m_slots[m_cur_slot].end(); )
 		{
 			auto p = *it;
-			// if (p->getExpiredTick() < tick)
-			// {
-			// 	printf("Something happend, ExpiredTick = %ud, cur_tick = %ud.\n", p->getExpiredTick(), tick);
-			// }
-			printf("-->Cur_level = %u. Cur_slot = %u.\n", getSlotInterval(), m_cur_slot);
+
+			// printf("-->Cur_level = %u. Cur_slot = %u. Cur_tick = %u. ExpiredTick = %u\n", 
+			// 	getSlotInterval(), m_cur_slot, tick, p->getExpiredTick());
 			if(p->getExpiredTick() <= tick)
 			{
 				p->runTask();
 				p->incExpiredCount();
-				it = m_slots[m_cur_slot].erase(it);
+
 				// circle
 				if(!p->isFinished())
 				{
@@ -132,24 +131,20 @@ void Wheel::tick(uint64_t tick)
 						p->nextCycle(p->getExpiredTick());
 					// FIXME: tick bigger than MAX_TICK
 					// TODO: make clear
-					uint64_t more = p->getExpiredTick();
+					//uint64_t more = p->getExpiredTick();
 					uint64_t left = p->getExpiredTick() - tick;
 					if(left >= getSlotInterval())
 					{
 						Wheel::Ptr insert_wheel = this;
 						while(insert_wheel != nullptr && 
-							left / insert_wheel->getSlotInterval() + insert_wheel->getCurSlot() >= insert_wheel->getSlotNum())
+							left / insert_wheel->getSlotInterval() + insert_wheel->getCurSlot() + 1 >= insert_wheel->getSlotNum())
 							insert_wheel = insert_wheel->getNextWheel();
 						if(insert_wheel != nullptr)
 						{
-							if (left / insert_wheel->getSlotInterval() == 0)
-								insert_wheel->addInSlot(insert_wheel->getCurSlot() + 1, p);
-							else
-								insert_wheel->addInSlot(left / insert_wheel->getSlotInterval() + insert_wheel->getCurSlot(), p);
-
-							printf("  left = %u \n", left);
-							printf("  Readd In whell(interval = %u), slot = %u.\n",
-								   insert_wheel->getSlotInterval(), left / insert_wheel->getSlotInterval() + insert_wheel->getCurSlot());															
+							//printf("Left = %u, slot_interval = %u, cur_slot = %u\n", left, insert_wheel->getSlotInterval(), insert_wheel->getCurSlot());
+							insert_wheel->addInSlot(left / insert_wheel->getSlotInterval() + insert_wheel->getCurSlot(), p);
+							// printf("  Readd In whell(interval = %u), slot = %u.\n",
+							//  	insert_wheel->getSlotInterval(), left / insert_wheel->getSlotInterval() + insert_wheel->getCurSlot());															
 						}	
 					}
 					else
@@ -163,17 +158,17 @@ void Wheel::tick(uint64_t tick)
 						}
 						if (insert_wheel != nullptr)
 						{
-							insert_wheel->addInSlot(left / insert_wheel->getSlotInterval(), p);
-							//printf("left = %u, left / insert_wheel->getSlotInterval() = %u.\n", left,left / insert_wheel->getSlotInterval());
-							printf("\tsmaller%%% Readd In whell(interval = %u), slot = %u.\n",
-								   insert_wheel->getSlotInterval(), left / insert_wheel->getSlotInterval());
+							insert_wheel->addInSlot(left / insert_wheel->getSlotInterval() + insert_wheel->getCurSlot(), p);
+		
+							// printf("\tsmaller%%% Readd In whell(interval = %u), slot = %u.\n",
+							// 	   insert_wheel->getSlotInterval(), left / insert_wheel->getSlotInterval() + insert_wheel->getCurSlot());
 						}
 					}
 				}
-				else
-				{
-					printf("(-_-)TickTask Finish : %x\n", p.get());
-				}
+				// else
+				// {
+				// 	printf("(-_-)TickTask Finish : %x\n", p.get());
+				// }
 				
 			}
 			else // TODO: will it happend??
@@ -187,16 +182,18 @@ void Wheel::tick(uint64_t tick)
 				}
 				if(insert_wheel != nullptr)
 				{
-					insert_wheel->addInSlot(left % insert_wheel->getSlotInterval(), p);
-					printf("smaller@@@@ Readd In whell(interval = %u), slot = %u.\n", 
-						insert_wheel->getSlotInterval(), left % insert_wheel->getSlotInterval());
+					//printf("Left = %u, slot_interval = %u, cur_slot = %u\n", left, insert_wheel->getSlotInterval(), insert_wheel->getCurSlot());
+					insert_wheel->addInSlot(left / insert_wheel->getSlotInterval() + insert_wheel->getCurSlot(), p);
+					// printf("smaller@@@@ Readd In whell(interval = %u), slot = %u.\n", 
+					//  	insert_wheel->getSlotInterval(), left / insert_wheel->getSlotInterval() + insert_wheel->getCurSlot());
 				}
-					
-				it = m_slots[m_cur_slot].erase(it);
 			}
+			it = m_slots[m_cur_slot].erase(it);
 		}
+
 	}
-	m_cur_slot++;		
+	m_cur_slot++;
+	
 }
 
 void Wheel::addInSlot(uint64_t slot, Tick::Ptr tick_p)
@@ -206,13 +203,18 @@ void Wheel::addInSlot(uint64_t slot, Tick::Ptr tick_p)
 	m_slots[slot].push_front(tick_p);
 }
 
-void Wheel::delInSlot(uint64_t slot, Tick::Ptr tick_p)
+bool Wheel::delInSlot(uint64_t slot, Tick::Ptr tick_p)
 {
 	if(slot >= m_slot_interval)
-		return;
+		return false;
 	auto it = std::find(m_slots[slot].begin(), m_slots[slot].end(), tick_p);
 	if(it != m_slots[slot].end())
+	{
 		m_slots[slot].erase(it);
+		return true;
+	}
+	else
+		return false;
 }
 
 uint64_t Wheel::getSlotInterval()
@@ -255,7 +257,7 @@ uint64_t Wheel::getCurSlot()
 // TimerWheel implementation start:
 
 TimerWheel::TimerWheel(int group_num, uint64_t base_interval) 
-	: m_last_tick(0), m_closest_tick(0), is_running(false),
+	: m_last_tick(0),  is_running(false),//m_closest_tick(0),
 	m_base_interval(base_interval)
 {
 	if(0 >= group_num || MAX_WHEEL_NUM < group_num)
@@ -276,10 +278,10 @@ TimerWheel::TimerWheel(int group_num, uint64_t base_interval)
 		m_wheel_group[i]->setPrevWheel(m_wheel_group[i - 1]);		
 	}
 	// for debug
-	for(auto & p : m_wheel_group)
-	{
-		printf("%x\n", p);
-	}
+	// for(auto & p : m_wheel_group)
+	// {
+	// 	printf("%x\n", p);
+	// }
 }
 
 TimerWheel::~TimerWheel()
@@ -302,46 +304,50 @@ bool TimerWheel::add(Tick::Ptr empty_tick, uint64_t start_after_the_time,
 {
 	update();
 	uint64_t expired_time = getCurTick() + start_after_the_time;
-	empty_tick->setAll(expired_time , cb, cycle, interval);
+	empty_tick->setAll(expired_time, cb, cycle, interval);
 	std::pair<size_t, uint64_t> location = getTickLocation(expired_time);
 	//if(location.first >= m_wheel_group.size() || location.second >= m_wheel_group[location.first]->getSlotNum())
 	//	return false;
 
-	printf("Add Tick %u in location(%u,%u).\n", expired_time, location.first, location.second);
+	//printf("Add Tick %u in location(%u,%u).\n", expired_time, location.first, location.second);
 	m_wheel_group[location.first]->addInSlot(location.second, empty_tick);
 	return true;
 }	
 
 bool TimerWheel::del(Tick::Ptr tick_p)
 {
+	update();
 	auto location = getTickLocation(tick_p->getExpiredTick());
-	m_wheel_group[location.first]->delInSlot(location.second, tick_p);
+	return m_wheel_group[location.first]->delInSlot(location.second, tick_p);
 }
 
 void TimerWheel::update()
 {
-	
-	uint64_t cur_tick = getCurTick();
-	//printf("Update Now, cur_tick = %u.\n", cur_tick);
-	// if (cur_tick < m_closest_tick)
-	// {
-	// 	m_last_tick = cur_tick;
-	// 	return;
-	// }
-
-	if(cur_tick > m_last_tick)
+	if(is_running)
 	{
-		uint64_t diff = cur_tick - m_last_tick;
-		uint64_t temp = m_last_tick;
-		while(diff-- > 0)
-			tick(temp++);
+		uint64_t cur_tick = getCurTick();
+		//printf("Update Now, cur_tick = %u.\n", cur_tick);
+		// if (cur_tick < m_closest_tick)
+		// {
+		// 	m_last_tick = cur_tick;
+		// 	return;
+		// }
+
+		if(cur_tick > m_last_tick)
+		{
+			uint64_t diff = cur_tick - m_last_tick;
+			uint64_t temp = m_last_tick;
+			while(diff-- > 0)
+				tick(temp++);
+		}
+		m_last_tick = cur_tick;
 	}
-	m_last_tick = cur_tick;
 }
 
 void TimerWheel::close()
 {
-	
+	is_running = false;
+	m_last_tick = 0;
 }
 
 uint64_t TimerWheel::getCurTick()
@@ -355,38 +361,29 @@ void TimerWheel::tick(uint64_t tick)
 	if(is_running)
 	{
 		m_wheel_group[0]->tick(tick);
-
 	}
 }
 
-int TimerWheel::getIndex()
-{
-	
-}
 
 std::pair<size_t, uint64_t> TimerWheel::getTickLocation(uint64_t expired_time)
 {
 	size_t wheel_index = 0;
-	uint64_t slot_index = expired_time;
-	uint64_t temp = 0;
-	for(int i = 0; i < m_wheel_group.size(); ++i)
+	uint64_t slot_index = 0;
+	uint64_t left = expired_time - m_last_tick;
+	for(size_t i = 0; i < m_wheel_group.size(); ++i)
 	{
-		temp = slot_index / DEFAULT_SLOT_NUM;
-		if(temp == 0)
+		slot_index = left / m_wheel_group[i]->getSlotInterval() + m_wheel_group[i]->getCurSlot();
+		if(slot_index < m_wheel_group[i]->getSlotNum())
 		{
+			wheel_index = i;
 			break;
 		}
-		wheel_index++;	
-		slot_index = temp;
 	}
 	return std::pair<size_t, uint64_t>(wheel_index, slot_index);
 }
 
 
 // TimerWheel implementation end.-------------------------------------------<TimerWheel>
-
-
-
 
 } // namespace Toy
 

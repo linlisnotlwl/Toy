@@ -15,6 +15,6 @@ public:
 	//       due to the compilers behavior to check accessibility
 	//       before deleted status
     Noncopyable(const Noncopyable &) = delete;
-    const Noncopyable &operator=(const Noncopyable &) = delete;
+    Noncopyable & operator=(const Noncopyable &) = delete;
 };
 }// namespace Toy

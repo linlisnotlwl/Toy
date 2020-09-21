@@ -12,11 +12,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 if(True)
     set(CMAKE_BUILD_TYPE "Debug")
 else()
-    #set(CMAKE_BUILD_TYPE "Release")
+    set(CMAKE_BUILD_TYPE "Release")
 endif()
 
-set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g3 -ggdb")
-set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O2 -Wall")
+set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -rdynamic -g3 -O0 -Wall  -ggdb")# -fsanitize=address
+set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -rdynamic -O2 -Wall -DNDEBUG")
 
 #add_subdirectory(toy)
 

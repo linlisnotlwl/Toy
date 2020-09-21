@@ -192,7 +192,11 @@ public:
 	LogFormat::Ptr getLogFormat() const { return m_format_ptr; }
 	void setLevel(LogLevel::Level level) { m_level = level; }
 protected:
+#ifdef NDEBUG
+	LogLevel::Level m_level = LogLevel::Level::INFO;
+#else
 	LogLevel::Level m_level = LogLevel::Level::DEBUG;
+#endif
 	LogFormat::Ptr m_format_ptr = nullptr;	// it should be init, otherwise it would be empty(Windbg status)
 											// (could not use, but not pointer to nullptr, look like it works)
 	std::mutex m_mutex_stream;
@@ -235,7 +239,12 @@ class Logger
 {
 public:
 	typedef std::shared_ptr<Logger> Ptr;
+#ifdef NDEBUG
+	Logger(const std::string & name = "root", LogLevel::Level level = LogLevel::Level::INFO);
+#else
 	Logger(const std::string & name = "root", LogLevel::Level level = LogLevel::Level::DEBUG);
+#endif
+	
 	~Logger();
 	void log(LogLevel::Level, LogEvent::Ptr);
 	void logDebug(LogEvent::Ptr);
@@ -294,7 +303,7 @@ private:
 	if(level >= logger_ptr->getLevel())	\
 		Toy::LogEventWrap(logger_ptr, std::make_shared<Toy::LogEvent>(__FILE__, __LINE__, \
 			0, "", 0, time(nullptr), level)).getStream() \
-
+// FIXME:what if level < logger_ptr->getLevel()
 #define _TOY_LOG_DEBUG(logger_ptr) TOY_LOG(logger_ptr, Toy::LogLevel::DEBUG)
 #define _TOY_LOG_INFO(logger_ptr) TOY_LOG(logger_ptr, Toy::LogLevel::INFO)
 #define _TOY_LOG_WARN(logger_ptr) TOY_LOG(logger_ptr, Toy::LogLevel::WARN)

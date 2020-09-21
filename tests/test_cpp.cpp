@@ -1,7 +1,7 @@
 #include <iostream>
 #include <memory> // shared_ptr
 #include <mutex>
-
+#include "Util.h"
 
 class Base
 {
@@ -39,16 +39,29 @@ static void cast(Base * p)
 //     std::dynamic_pointer_cast<Derived<T>>(p)->print();
 
 // }
-static void test_dynamic_typeid()
+
+void test_toy_assert()
+{
+    int i = 1;
+    int j = 2;
+  
+    TOY_ASSERT(i == j);
+
+}
+void test_dynamic_typeid()
 {
     Base * dp = new Derived<double>();
     dp->print();
     cast<double>(dp);
+    test_toy_assert();
 
 }
+
+
 
 int main()
 {
     test_dynamic_typeid();
+    //test_toy_assert();
     return 0;
 }

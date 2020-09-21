@@ -379,7 +379,17 @@ LogManager::LogManager(const std::string & config_file_name)
 						std::shared_ptr<LogAppender> ptr = std::make_shared<StdoutAppender>();
 						double level = 0;
 						if(Config::getValOrZero<double>("StdoutAppender.loglevel", level))
-							ptr->setLevel(static_cast<LogLevel::Level>(level));
+						{
+							auto temp = static_cast<LogLevel::Level>(level);
+							if(temp == LogLevel::Level::DEBUG)
+							{
+								#ifdef NDEBUG
+									temp = LogLevel::Level::INFO;
+								#endif
+							}
+							ptr->setLevel(temp);
+						}
+							
 						m_logger_ptr->addAppender(ptr);
 					}
 					else if(appender == "FileAppender")
@@ -389,7 +399,16 @@ LogManager::LogManager(const std::string & config_file_name)
 						Config::getValOrZero<std::string>("FileAppender.outputfilename", filename);
 						std::shared_ptr<LogAppender> ptr = std::make_shared<FileAppender>(filename);
 						if(Config::getValOrZero<double>("FileAppender.loglevel", level))
-							ptr->setLevel(static_cast<LogLevel::Level>(level));
+						{
+							auto temp = static_cast<LogLevel::Level>(level);
+							if(temp == LogLevel::Level::DEBUG)
+							{
+								#ifdef NDEBUG
+									temp = LogLevel::Level::INFO;
+								#endif
+							}
+							ptr->setLevel(temp);
+						}
 						m_logger_ptr->addAppender(ptr);
 					}
 				}

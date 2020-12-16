@@ -39,7 +39,7 @@ Scheduler * Cohandler::getCurScheduler()
 Coroutine * Cohandler::getCurCoroutine()
 {
     auto p = getCurHandler();
-    if(p != nullptr && p->is_active && (*p->m_cur_running_co) != nullptr)
+    if(p != nullptr && p->is_curco_vaild)
     {
         return *p->m_cur_running_co;
     }
@@ -50,7 +50,7 @@ Coroutine * Cohandler::getCurCoroutine()
 Cohandler::CoIterator Cohandler::getCurCoInterator()
 {
     auto p = getCurHandler();
-    if(p != nullptr && p->is_active)
+    if(p != nullptr && p->is_curco_vaild)
         return p->m_cur_running_co;
     else
         TOY_ASSERT(false);
@@ -78,7 +78,7 @@ void Cohandler::handler()
         }
         // get a coroutine to run
         m_cur_running_co = m_runnable_cos.begin();
-        is_active = true;
+        is_curco_vaild = true;
 
         // TODO: is this while-loop necessary
         while(m_cur_running_co != m_runnable_cos.end() 
@@ -103,7 +103,7 @@ void Cohandler::handler()
                     m_runnable_cos.splice(m_runnable_cos.end(), m_runnable_cos, m_cur_running_co);
                     // get a new one;
                     m_cur_running_co = m_runnable_cos.begin();
-                    is_active = true;
+                    is_curco_vaild = true;
                     break;
                 }
                 case Coroutine::CoState::SUSPEND : 
@@ -111,17 +111,20 @@ void Cohandler::handler()
                 case Coroutine::CoState::DONE : 
                 {
                     // delete or reuse it
+                    is_curco_vaild = false;
                     m_runnable_cos.erase(m_cur_running_co);
+                    m_co_count--;
                     delete cur_co;
                     m_cur_running_co = m_runnable_cos.begin();
-                    is_active = true;
+                    is_curco_vaild = true;
+                    printf("Co Done.\n");
 
                 }
 
             }
 
         }
-        is_active = false;
+        is_curco_vaild = false;
 
         
     }
@@ -154,8 +157,8 @@ void Cohandler::addCoroutine(Coroutine * co)
 {
     std::unique_lock<std::mutex> lock(m_cos_mutex);
     m_new_cos.push_back(co);
-    // TODO: is it necessary
-    //co->m_cohandler = this;
+    m_co_count++;
+    co->m_cohandler = this;
     if(is_waitting)
     {
         m_sema.notify();
@@ -174,15 +177,17 @@ void Cohandler::yeildCo()
 
 void Cohandler::suspendCo()
 {
-    Coroutine * cur_co = getCurCoroutine();
-    TOY_ASSERT(cur_co != nullptr);
-    TOY_ASSERT(cur_co->m_cohandler != nullptr);
-    TOY_ASSERT(cur_co->m_state == Coroutine::CoState::RUNNING);
+    // Coroutine * cur_co = getCurCoroutine();
+    // TOY_ASSERT(cur_co != nullptr);
+    // TOY_ASSERT(cur_co->m_cohandler != nullptr);
+    // TOY_ASSERT(cur_co->m_state == Coroutine::CoState::RUNNING);
+    auto p = getCurCoInterator();
 
-    cur_co->m_state = Coroutine::CoState::SUSPEND;
+    (*p)->m_state = Coroutine::CoState::SUSPEND;
     std::unique_lock<std::mutex> lock(m_cos_mutex); // m_cos_mutex can not be used in static function
     //TODO: erase cur_co from runnable list
     //      add it to waitting list;
+    m_waiting_cos.splice(m_waiting_cos.end(), m_runnable_cos, p);
 }
 
 } // namespace Toy

@@ -23,7 +23,7 @@ void Scheduler::createCoroutine(const CoFunction & cf, size_t stack_size)
     addCoroutine(co);
 }
 
-void Scheduler::start(size_t thread_num)
+void Scheduler::start(size_t thread_num, bool using_cur_thread)
 { 
     
     if(!is_running)
@@ -31,8 +31,8 @@ void Scheduler::start(size_t thread_num)
         is_running = true;
         size_t temp = std::thread::hardware_concurrency();
         if(thread_num == 0 || thread_num > temp)
-            //thread_num = temp; 
-            thread_num = 1; //FIXME : just fot test
+            thread_num = temp; 
+            //thread_num = 1; //just fot test
         {
             std::unique_lock<std::mutex> lock(m_handlers_mutex);
             for(size_t i = 1; i < thread_num; ++i)
@@ -48,7 +48,14 @@ void Scheduler::start(size_t thread_num)
 
         //std::thread t([this](){ this->m_all_handlers.front()->handler(); });
         //t.detach();
-        m_all_handlers.front()->handler();
+        if(using_cur_thread)
+            m_all_handlers.front()->handler();
+        else
+        {
+            std::thread t([this](){ this->m_all_handlers.front()->handler(); });
+            t.detach();
+        }
+        
     }
 
 }
@@ -65,9 +72,6 @@ void Scheduler::stop()
         std::unique_lock<std::mutex> lock(m_handlers_mutex);
         for(auto & p : m_all_handlers)
             p->m_sema.notify();
-
-        
-        
         
     }
 }
@@ -98,12 +102,18 @@ void Scheduler::addCoroutine(Coroutine * co)
         return; 
     }
 
-    for(size_t i = 0; i < m_all_handlers.size(); ++i)
+    auto min_it = m_all_handlers.begin();
+    uint64_t cur_min = 0;
+    for (auto it = m_all_handlers.begin(); it != m_all_handlers.end(); ++it)
     {
-        // TODO : find the suitable one
-        m_all_handlers.front()->addCoroutine(co);
-        break;
+        if ((*it)->m_co_count < cur_min)
+        {
+            cur_min = (*it)->m_co_count;
+            min_it = it;
+        }
     }
+
+    (*min_it)->addCoroutine(co);
 }
 
 } // namespace Toy

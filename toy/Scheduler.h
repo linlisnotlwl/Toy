@@ -24,10 +24,12 @@ public:
     ~Scheduler();
     
     void createCoroutine(const CoFunction & cf, size_t stack_size = DEFAULT_STACK_SIZE);
-    void start(size_t thread_num = 0);
+    void start(size_t thread_num = 0, bool using_cur_thread = true);
     void stop();
+    void stopGently(); // TODO
+    void stop(uint64_t timeout); // TODO
     size_t getCoNum();
-    bool isRunning() { return is_running; }
+    inline bool isRunning() { return is_running; }
 
 private:
     void dispatch();

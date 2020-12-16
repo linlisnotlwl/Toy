@@ -27,6 +27,13 @@ void Coroutine::run(void * cur_co)
 {
     Coroutine * p = static_cast<Coroutine *>(cur_co);
     p->m_cf();
+    p->m_state = CoState::DONE;
+    p->m_cf = Coroutine::emptyFunction;
+}
+
+void Coroutine::emptyFunction()
+{
+    // do nothing
 }
 
 Cohandler * Coroutine::getCohandler()

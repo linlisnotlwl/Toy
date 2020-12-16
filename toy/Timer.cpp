@@ -130,7 +130,7 @@ void Wheel::tick(uint64_t tick)
 					else
 						p->nextCycle(p->getExpiredTick());
 					// FIXME: tick bigger than MAX_TICK
-					// TODO: make clear
+					// TODO: make clearly
 					//uint64_t more = p->getExpiredTick();
 					uint64_t left = p->getExpiredTick() - tick;
 					if(left >= getSlotInterval())

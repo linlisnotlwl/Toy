@@ -37,6 +37,7 @@ public:
 
 private:
     static void run(void * cur_co);
+    static void emptyFunction();
     CoFunction m_cf;
     //char * m_stack;
     //size_t m_stack_size;

@@ -24,6 +24,8 @@ public:
     // 提供给用户使用，用户不用关注当前是哪个Cohandler
     static void yeild();
     static void suspend();
+    //TODO
+    //static void suspend(Time);
 private:
 
     // 获取当前线程的handler
@@ -43,6 +45,8 @@ private:
     std::atomic<bool> is_waitting;
     std::atomic<bool> is_active;
 
+    std::atomic<uint64_t> m_co_count;
+
     Semaphore m_sema;
 
     std::list<Coroutine *> m_runnable_cos;
@@ -54,7 +58,7 @@ private:
     //Coroutine * m_cur_running_co;
     //Coroutine * m_next_co;
     CoIterator m_cur_running_co;
-    bool is_curco_vaild;
+    std::atomic<bool> is_curco_vaild = {false};
 
     Scheduler * m_scheduler;
     int m_id;

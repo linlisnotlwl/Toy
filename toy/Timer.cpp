@@ -3,31 +3,31 @@
 namespace Toy
 {
 
-Timer::Timer() : _begin_timepoint(std::chrono::high_resolution_clock::now())
+TinyTimer::TinyTimer() : _begin_timepoint(std::chrono::high_resolution_clock::now())
 {
 }
 
 
-Timer::~Timer()
+TinyTimer::~TinyTimer()
 {
 }
 
-void Timer::update()
+void TinyTimer::update()
 {
 	_begin_timepoint = std::chrono::high_resolution_clock::now();
 }
 
-double Timer::getElapsedSecond()
+double TinyTimer::getElapsedSecond()
 {
 	return getElapsedMicroSecond() * 0.000001;
 }
 
-double Timer::getElapsedMillSecond()
+double TinyTimer::getElapsedMillSecond()
 {
 	return getElapsedMicroSecond() * 0.001;
 }
 
-long long Timer::getElapsedMicroSecond()
+long long TinyTimer::getElapsedMicroSecond()
 {
 	return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - _begin_timepoint).count();
 }
@@ -198,14 +198,14 @@ void Wheel::tick(uint64_t tick)
 
 void Wheel::addInSlot(uint64_t slot, Tick::Ptr tick_p)
 {
-	if(slot >= m_slot_num)
+	if(slot >= m_slot_num || tick_p->isFinished())
 		return;
 	m_slots[slot].push_front(tick_p);
 }
 
 bool Wheel::delInSlot(uint64_t slot, Tick::Ptr tick_p)
 {
-	if(slot >= m_slot_interval)
+	if(slot >= m_slot_num)
 		return false;
 	auto it = std::find(m_slots[slot].begin(), m_slots[slot].end(), tick_p);
 	if(it != m_slots[slot].end())
@@ -258,7 +258,7 @@ uint64_t Wheel::getCurSlot()
 
 TimerWheel::TimerWheel(int group_num, uint64_t base_interval) 
 	: m_last_tick(0),  is_running(false),//m_closest_tick(0),
-	m_base_interval(base_interval)
+	m_base_interval(base_interval), m_quit(false)
 {
 	if(0 >= group_num || MAX_WHEEL_NUM < group_num)
 		group_num = DEFAULT_WHEEL_NUM;
@@ -312,7 +312,13 @@ bool TimerWheel::add(Tick::Ptr empty_tick, uint64_t start_after_the_time,
 	//printf("Add Tick %u in location(%u,%u).\n", expired_time, location.first, location.second);
 	m_wheel_group[location.first]->addInSlot(location.second, empty_tick);
 	return true;
-}	
+}
+
+bool TimerWheel::add(uint64_t start_after_the_time, Tick::CallbackFun cb, 
+	int32_t cycle, uint64_t interval)
+{
+	return add(std::make_shared<Tick>(), start_after_the_time, cb, cycle, interval);
+}
 
 bool TimerWheel::del(Tick::Ptr tick_p)
 {
@@ -323,6 +329,8 @@ bool TimerWheel::del(Tick::Ptr tick_p)
 
 void TimerWheel::update()
 {
+	// 如果当前没有任务，则将起始时间更新为当前时间，但还是没解决时间溢出问题
+	// 解决办法：把MAX_TICK设置成很大的数，一百年哈哈
 	if(is_running)
 	{
 		uint64_t cur_tick = getCurTick();
@@ -344,9 +352,33 @@ void TimerWheel::update()
 	}
 }
 
+void TimerWheel::autoUpdate()
+{
+	std::thread t( [this](){ this->TimerWheel::autoUpdateThreadFun(); } );
+	t.detach();
+}
+
+void TimerWheel::autoUpdateThreadFun()
+{
+	while(is_running)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        update();
+	}
+	// 这里用信号会导致，先notify后wait
+	//m_quit_sema.notify();
+	std::unique_lock<std::mutex> lock(m_quit_mutex);
+	m_quit = true;
+	m_cv.notify_all();
+
+}
+
 void TimerWheel::close()
 {
 	is_running = false;
+	std::unique_lock<std::mutex> lock(m_quit_mutex);
+	m_cv.wait(lock, [this](){ return this->m_quit; });
+	//m_quit_sema.wait();
 	m_last_tick = 0;
 }
 

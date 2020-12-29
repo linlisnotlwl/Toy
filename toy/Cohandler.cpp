@@ -13,6 +13,7 @@ Cohandler::Cohandler(Scheduler * sd, int id)
 Cohandler::~Cohandler()
 {
     m_sema.notify();
+    // TODO: 是直接清空吗
     for(auto & p : m_waiting_cos)
         delete p;
     m_waiting_cos.clear();
@@ -39,15 +40,15 @@ Scheduler * Cohandler::getCurScheduler()
 Coroutine * Cohandler::getCurCoroutine()
 {
     auto p = getCurHandler();
-    if(p != nullptr && p->is_curco_vaild)
+    if(p != nullptr)
     {
-        return *p->m_cur_running_co;
+        return p->m_cur_running_co;
     }
     else
         return nullptr;
 }
-
-Cohandler::CoIterator Cohandler::getCurCoInterator()
+/*
+Cohandler::CoIterator Cohandler::getCurCoIterator()
 {
     auto p = getCurHandler();
     if(p != nullptr && p->is_curco_vaild)
@@ -56,106 +57,159 @@ Cohandler::CoIterator Cohandler::getCurCoInterator()
         TOY_ASSERT(false);
     
 }
+*/
 
 void Cohandler::handler()
 {
     getCurHandler() = this; // set this handler to cur thread
-    auto p = getCurHandler();
-    printf("%d, %d.\n", this, p);
+    //auto p = getCurHandler();
+    //printf("%d, %d.\n", this, p);
     while(m_scheduler->isRunning())
     {
+        std::unique_lock<LockType> lock1(m_run_lock, std::defer_lock);
         if(m_runnable_cos.empty())
         {
             turnNew2Runnable();
-
+            lock1.lock(); // 确保下面的empty是安全的
             if(m_runnable_cos.empty())
             {
+                
                 waitForNewCos();
+                lock1.unlock();
                 turnNew2Runnable();
                 continue;
             }
 
         }
+        lock1.lock();
+        // TODO: 直接弹出该协程好像比较好
         // get a coroutine to run
-        m_cur_running_co = m_runnable_cos.begin();
-        is_curco_vaild = true;
+        m_cur_running_co = m_runnable_cos.front();
+        m_runnable_cos.pop_front();
 
-        // TODO: is this while-loop necessary
-        while(m_cur_running_co != m_runnable_cos.end() 
-            && (*m_cur_running_co) != nullptr
+        // this while-loop 消耗完runnable的所有协程任务
+        while(m_cur_running_co != nullptr; 
             && m_scheduler->isRunning()) // keeping running
         {
-            //TODO: how to get the next co after cur co
+            //auto cur_co = m_cur_running_co;
+            m_cur_running_co->m_state = Coroutine::CoState::RUNNING;
+            m_cur_running_co->m_cohandler = this; // 这里设置的原因是，它有可能被调度到其他控制器
 
-            auto cur_co = *m_cur_running_co;
-            cur_co->m_state = Coroutine::CoState::RUNNING;
-            cur_co->m_cohandler = this;
+            lock1.unlock(); // 任务执行中可能出现的suspend，会改变队列
+            m_cur_running_co->swapIn();
+            lock1.lock();
 
-            cur_co->swapIn();
-
-            switch(cur_co->m_state)
+            switch(m_cur_running_co->m_state)
             {
-                // TODO
                 case Coroutine::CoState::RUNNING : 
                 case Coroutine::CoState::NORMAL : 
                 {
                     // add it to the end of runnable list
-                    m_runnable_cos.splice(m_runnable_cos.end(), m_runnable_cos, m_cur_running_co);
-                    // get a new one;
-                    m_cur_running_co = m_runnable_cos.begin();
-                    is_curco_vaild = true;
+                    m_runnable_cos.push_back(m_cur_running_co);
+                    m_cur_running_co = nullptr;
                     break;
                 }
                 case Coroutine::CoState::SUSPEND : 
+                {
                     // wake it up after a setting time
+                    // TODO: 因为调用suspend的时候会处理？？还是回到这里处理呢
+                    m_cur_running_co = nullptr;
+                    break;
+                }
                 case Coroutine::CoState::DONE : 
                 {
-                    // delete or reuse it
-                    is_curco_vaild = false;
-                    m_runnable_cos.erase(m_cur_running_co);
+                    // delete or reuse it 
+                    // TODO: Add it to a reuse list: 等待一段时间没有重用就删除
                     m_co_count--;
-                    delete cur_co;
-                    m_cur_running_co = m_runnable_cos.begin();
-                    is_curco_vaild = true;
-                    printf("Co Done.\n");
-
+                    delete m_cur_running_co;
+                    m_cur_running_co = nullptr;
+                    //printf("Co Done.\n");
+                    break;
                 }
-
             }
-
-        }
-        is_curco_vaild = false;
-
-        
+            // get new one
+            if(!m_runnable_cos.empty())
+            {
+                m_cur_running_co = m_runnable_cos.front();
+                m_runnable_cos.pop_front();
+            }
+        }  
     }
 }
 
 void Cohandler::yeild()
 {
-    //Coroutine * cur_co = getCurCoroutine();
-    //TOY_ASSERT(cur_co != nullptr);
-    //cur_co->swapOut();
+    Coroutine * cur_co = getCurCoroutine();
+    TOY_ASSERT(cur_co != nullptr);
+    cur_co->swapOut();
 
-    auto it = getCurCoInterator();
-    (*it)->swapOut();
+    //auto it = getCurCoIterator();
+    //(*it)->swapOut();
     
 }
 
-void Cohandler::suspend()
+Cohandler::SuspendInfo Cohandler::suspend(TimerWheel::TimeDuration dur)
 {
     auto handler = getCurHandler();
-    if(handler != nullptr)
-        handler->suspendCo(); // TODO
+    TOY_ASSERT(handler != nullptr);
+    auto si = handler->suspendCo();
+    // mutable 默认情况下，对于一个值被拷贝的变量，
+    // lambda不会改变其值，如果我们希望能改变一个被捕获变量的值，
+    // 就必须在参数列表尾加上关键字mutable。
+    getCurScheduler()->getTimer()->add(dur, 
+        [si]() 
+        {
+            Cohandler::wakeup(si);
+        });
+    return si;
+}
+
+bool Cohandler::wakeup(SuspendInfo si)
+{
+    // TODO: 是否需要锁Coroutine
+    auto cohandler = getCurHandler();
+    return cohandler == nullptr ? false : cohandler->wakeupCo(si);
+}
+
+bool Cohandler::wakeupCo(SuspendInfo si)
+{
+    TOY_ASSERT(si.sus_co != nullptr);
+    TOY_ASSERT(si.sus_co->m_state == Coroutine::CoState::SUSPEND);
+    std::unique_lock<LockType> lock1(m_wait_lock);
+    auto it = m_waiting_cos.find(si.sus_co);
+    if(it == m_waiting_cos.end())
+    {
+        fprintf(stderr, "Waking up a Co which is not in Waitting Queue.\n");
+        //TOY_ASSERT(false);
+        return false;
+    }
+    lock1.unlock();
+    si.sus_co->m_state = Coroutine::CoState::RUNNING;
+    std::unique_lock<LockType> lock2(m_run_lock);
+    m_runnable_cos.push_back(si.sus_co);
+    lock2.unlock();
+    if(is_waitting)
+    {
+        m_sema.notify();
+    }
+    return true;
 }
 
 void Cohandler::turnNew2Runnable()
 {
-    m_runnable_cos.splice(m_runnable_cos.end(), m_new_cos);
+    std::unique_lock<LockType> lock2(m_new_lock);
+    if(m_new_cos.empty())
+        return;
+    CoQueue temp(std::move(m_new_cos));
+    lock2.unlock();
+
+    std::unique_lock<LockType> lock1(m_run_lock);
+    m_runnable_cos.splice(m_runnable_cos.end(), temp);
 }
 
 void Cohandler::addCoroutine(Coroutine * co)
 {
-    std::unique_lock<std::mutex> lock(m_cos_mutex);
+    std::unique_lock<std::mutex> lock(m_new_lock);
     m_new_cos.push_back(co);
     m_co_count++;
     co->m_cohandler = this;
@@ -166,6 +220,7 @@ void Cohandler::addCoroutine(Coroutine * co)
 }
 void Cohandler::waitForNewCos()
 {
+    is_waitting = true;
     m_sema.wait();
     is_waitting = false;
 }
@@ -175,19 +230,24 @@ void Cohandler::yeildCo()
 
 }
 
-void Cohandler::suspendCo()
+Cohandler::SuspendInfo Cohandler::suspendCo()
 {
-    // Coroutine * cur_co = getCurCoroutine();
-    // TOY_ASSERT(cur_co != nullptr);
-    // TOY_ASSERT(cur_co->m_cohandler != nullptr);
-    // TOY_ASSERT(cur_co->m_state == Coroutine::CoState::RUNNING);
-    auto p = getCurCoInterator();
+    Coroutine * cur_co = getCurCoroutine();
+    TOY_ASSERT(cur_co != nullptr);
+    TOY_ASSERT(cur_co->m_cohandler != nullptr);
+    TOY_ASSERT(cur_co->m_state == Coroutine::CoState::RUNNING);
+    // TOY_ASSERT(is_curco_vaild);
+    // auto p = getCurCoIterator();
 
-    (*p)->m_state = Coroutine::CoState::SUSPEND;
-    std::unique_lock<std::mutex> lock(m_cos_mutex); // m_cos_mutex can not be used in static function
-    //TODO: erase cur_co from runnable list
-    //      add it to waitting list;
-    m_waiting_cos.splice(m_waiting_cos.end(), m_runnable_cos, p);
+    cur_co->m_state = Coroutine::CoState::SUSPEND;
+    std::unique_lock<LockType> lock(m_wait_lock); // non-static member var can not be used in static function
+    //  add it to waitting list;
+    // TODO: how to find its location, use hash? or SuspendInfo store the Iterator 
+    m_waiting_cos.insert(cur_co); 
+    m_cur_running_co = nullptr;
+    SuspendInfo ret;
+    ret.sus_co = cur_co;
+    return ret;
 }
 
 } // namespace Toy

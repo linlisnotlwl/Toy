@@ -5,10 +5,12 @@
 #include <atomic>
 #include <mutex>
 #include <functional>
+#include <memory>
 
 #include "Noncopyable.h"
 #include "Coroutine.h"
 #include "Cohandler.h"
+#include "Timer.h"
 
 namespace Toy
 {
@@ -20,6 +22,7 @@ typedef std::function<void ()> CoFunction;
 class Scheduler : public Noncopyable
 {
 public:
+    typedef std::shared_ptr<TimerWheel> TimerPtr;
     Scheduler();
     ~Scheduler();
     
@@ -30,7 +33,7 @@ public:
     void stop(uint64_t timeout); // TODO
     size_t getCoNum();
     inline bool isRunning() { return is_running; }
-
+    TimerPtr getTimer() { return m_timer; }
 private:
     void dispatch();
     void addCoroutine(Coroutine * co);
@@ -44,7 +47,9 @@ private:
 
     std::atomic<bool> is_running = {false};
 
-    
+    TimerPtr m_timer;
+
+    // TODO: Exit List 
 };
 
 

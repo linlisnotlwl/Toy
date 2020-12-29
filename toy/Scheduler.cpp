@@ -4,7 +4,7 @@ namespace Toy
 {
 
 
-Scheduler::Scheduler()
+Scheduler::Scheduler() : m_timer(std::make_shared<TimerWheel>())
 {
     m_all_handlers.push_back(new Cohandler(this, 0));
 }
@@ -29,6 +29,10 @@ void Scheduler::start(size_t thread_num, bool using_cur_thread)
     if(!is_running)
     {
         is_running = true;
+
+        m_timer->start();
+        m_timer->autoUpdate();
+        
         size_t temp = std::thread::hardware_concurrency();
         if(thread_num == 0 || thread_num > temp)
             thread_num = temp; 

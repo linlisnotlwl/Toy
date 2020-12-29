@@ -3,7 +3,7 @@
 #include "Timer.h"
 
 
-static Toy::Timer global_timer;
+static Toy::TinyTimer global_timer;
 static int count = 0;
 void call_back_fun(Toy::Tick::Ptr tick)
 {
@@ -33,6 +33,7 @@ static void test_timewheel()
     tw.add(tick1_p, 3, std::bind(call_back_fun, tick1_p), 10, 50);
     tw.add(tick2_p, 10, std::bind(call_back_fun, tick2_p), 15, 4);
     tw.add(tick3_p, 1000, std::bind(call_back_fun, tick3_p), 3, 1001);
+    tw.add(20, [](){ printf("Running Task 4.\n"); });
 
 
     for(int i = 0; i < 30; ++i)
@@ -40,16 +41,16 @@ static void test_timewheel()
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
         tw.update();
     }
-    if(!tw.del(tick1_p))
-        printf("((((((((((((((Delete tick error.\n");
+    if(!tw.del(tick2_p))
+        printf("((((((((((((((Delete tick error.%x\n", tick2_p.get());
     else
-        printf("&&&&&&&&&&&&&&Delete tick success.\n");
+        printf("&&&&&&&&&&&&&&Delete tick success.%x\n", tick2_p.get());
     
-    for(int i = 0; i < 5000; ++i)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        tw.update();
-    }
+    tw.autoUpdate();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+    //tw.update();
+    
     tw.close();
 }
 

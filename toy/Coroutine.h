@@ -6,6 +6,7 @@
 
 #include "Noncopyable.h"
 #include "Cohandler.h"
+#include "Queue.h" // for LinkBase
 
 namespace Toy
 {
@@ -13,7 +14,7 @@ namespace Toy
 typedef std::function<void ()> CoFunction;
 class Cohandler;
 
-class Coroutine : public Noncopyable
+class Coroutine : public Noncopyable//, public LinkBase
 {
     friend class Cohandler;
 public:

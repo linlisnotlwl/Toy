@@ -25,10 +25,8 @@ find_package (Threads)
 
 
 
-add_executable(toy_coroutine.out test_coroutine.cpp ${DIR_SRCS})
-target_link_libraries(toy_coroutine.out libtoyjson.a)
-target_link_libraries (toy_coroutine.out ${CMAKE_THREAD_LIBS_INIT})
-
+add_executable(toy_timewheel.out test_timer.cpp ../toy/Timer.cpp ../toy/Semaphore.cpp)
+target_link_libraries (toy_timewheel.out ${CMAKE_THREAD_LIBS_INIT})
 
 
 if(false)
@@ -50,7 +48,8 @@ target_link_libraries (toy_json.out ${CMAKE_THREAD_LIBS_INIT})
 add_executable(toy_buffer.out test_buffer.cpp ${DIR_SRCS})
 target_link_libraries (toy_buffer.out ${CMAKE_THREAD_LIBS_INIT})
 
-add_executable(toy_timewheel.out test_timer.cpp ../toy/Timer.cpp)
-target_link_libraries (toy_timewheel.out ${CMAKE_THREAD_LIBS_INIT})
+add_executable(toy_coroutine.out test_coroutine.cpp ${DIR_SRCS})
+target_link_libraries(toy_coroutine.out libtoyjson.a)
+target_link_libraries (toy_coroutine.out ${CMAKE_THREAD_LIBS_INIT})
 
 endif()

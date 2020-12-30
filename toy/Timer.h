@@ -9,7 +9,7 @@
 #include <mutex>
 
 #include "Noncopyable.h"
-#include "Semaphore.h"
+//#include "Semaphore.h"
 
 namespace Toy
 {
@@ -69,7 +69,7 @@ public:
 	~Wheel();
 	void tick(uint64_t tick);
 	// modify tick in slot
-	void addInSlot(uint64_t slot, Tick::Ptr tick_p);
+	bool addInSlot(uint64_t slot, Tick::Ptr tick_p);
 	bool delInSlot(uint64_t slot, Tick::Ptr tick_p);
 	// get wheel attribute
 	uint64_t getSlotInterval();
@@ -89,11 +89,13 @@ private:
 	Wheel::Ptr prev;
 	Wheel::Ptr next;
 	//int m_wheel_level;
+	// TODO: 为每个（或每组）slot分配一个mutex，
+	// 触发是，先加锁，取出，并弹出该slot,运行任务，再查找到加入的槽位置，加锁，在插入
 };
 
 static constexpr int MAX_WHEEL_NUM = 8;
 static constexpr int DEFAULT_WHEEL_NUM = 8;
-//static constexpr uint64_t MAX_TICK = 777600000; // 60^5 = 216hours = 9 days
+static constexpr uint64_t MAX_TICK = UINT64_MAX; // very big: 256^8
 
 /**
  * @brief 时间轮计时器
@@ -104,11 +106,11 @@ class TimerWheel : public Noncopyable
 public:
 	typedef std::vector<Wheel::Ptr> WheelGroup;
 	typedef uint64_t TimeDuration;
-	explicit TimerWheel(int group_num, uint64_t base_interval);
+	explicit TimerWheel(int group_num = DEFAULT_WHEEL_NUM, uint64_t base_interval = 1);
 	~TimerWheel();
 	void start();
 	/**
-	 * @brief 添加定时任务,线程安全
+	 * @brief 添加定时任务, 线程安全(但粒度很大)
 	 * 
 	 * @param empty_tick 空tick，用来保存该任务，可用于删除
 	 * @param start_after_the_time 启动时间，在设定的时间后启动，单位ms
@@ -135,15 +137,17 @@ private:
 	uint64_t m_last_tick;
 	//uint64_t m_cur_tick;
 	//uint64_t m_closest_tick; // ??you bi yao ma
-	bool is_running;
+	volatile bool is_running;
 	uint64_t m_base_interval;
 	TinyTimer m_time;
 
 	//std::thread m_update_thread;
-	Semaphore m_quit_sema;
+	//Semaphore m_quit_sema;
 	std::condition_variable m_cv;
 	std::mutex m_quit_mutex;
 	bool m_quit;
+
+	std::mutex m_update_mutex;
 
 };
 

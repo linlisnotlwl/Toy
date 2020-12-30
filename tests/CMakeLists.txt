@@ -23,9 +23,9 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 #add_compile_options(-std=c++11 -pthread -Wall) #-O0 -g3 -O2
 find_package (Threads)
 
+#
 
-
-add_executable(toy_timewheel.out test_timer.cpp ../toy/Timer.cpp ../toy/Semaphore.cpp)
+add_executable(toy_timewheel.out test_timer.cpp ../toy/Timer.cpp ../toy/Util.cpp)
 target_link_libraries (toy_timewheel.out ${CMAKE_THREAD_LIBS_INIT})
 
 

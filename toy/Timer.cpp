@@ -1,5 +1,7 @@
 #include "Timer.h"
 #include <algorithm>
+
+#include "Util.h"
 namespace Toy
 {
 
@@ -99,7 +101,8 @@ void Wheel::tick(uint64_t tick)
 	if(m_cur_slot >= m_slot_num)
 	{
 		m_cur_slot = 0;
-		// FIXME : next == nullptr
+		// 超出最大表示范围，因为Max_tick很大，所以将这种情况视为不可能出现的状态
+		TOY_ASSERT(next != nullptr);
 		next->tick(tick);
 		return;
 	}
@@ -196,11 +199,12 @@ void Wheel::tick(uint64_t tick)
 	
 }
 
-void Wheel::addInSlot(uint64_t slot, Tick::Ptr tick_p)
+bool Wheel::addInSlot(uint64_t slot, Tick::Ptr tick_p)
 {
 	if(slot >= m_slot_num || tick_p->isFinished())
-		return;
+		return false;
 	m_slots[slot].push_front(tick_p);
+	return true;
 }
 
 bool Wheel::delInSlot(uint64_t slot, Tick::Ptr tick_p)
@@ -258,7 +262,7 @@ uint64_t Wheel::getCurSlot()
 
 TimerWheel::TimerWheel(int group_num, uint64_t base_interval) 
 	: m_last_tick(0),  is_running(false),//m_closest_tick(0),
-	m_base_interval(base_interval), m_quit(false)
+	m_base_interval(base_interval), m_quit(true)
 {
 	if(0 >= group_num || MAX_WHEEL_NUM < group_num)
 		group_num = DEFAULT_WHEEL_NUM;
@@ -303,15 +307,17 @@ bool TimerWheel::add(Tick::Ptr empty_tick, uint64_t start_after_the_time,
 	Tick::CallbackFun cb, int32_t cycle, uint64_t interval)
 {
 	update();
+	std::unique_lock<std::mutex> lock(m_update_mutex);
 	uint64_t expired_time = getCurTick() + start_after_the_time;
 	empty_tick->setAll(expired_time, cb, cycle, interval);
+	
 	std::pair<size_t, uint64_t> location = getTickLocation(expired_time);
 	//if(location.first >= m_wheel_group.size() || location.second >= m_wheel_group[location.first]->getSlotNum())
 	//	return false;
 
 	//printf("Add Tick %u in location(%u,%u).\n", expired_time, location.first, location.second);
-	m_wheel_group[location.first]->addInSlot(location.second, empty_tick);
-	return true;
+	
+	return m_wheel_group[location.first]->addInSlot(location.second, empty_tick);
 }
 
 bool TimerWheel::add(uint64_t start_after_the_time, Tick::CallbackFun cb, 
@@ -330,7 +336,8 @@ bool TimerWheel::del(Tick::Ptr tick_p)
 void TimerWheel::update()
 {
 	// 如果当前没有任务，则将起始时间更新为当前时间，但还是没解决时间溢出问题
-	// 解决办法：把MAX_TICK设置成很大的数，一百年哈哈
+	// 解决办法：把MAX_TICK设置成很大的数(UINT64_MAX)，一百年哈哈
+	std::unique_lock<std::mutex> lock(m_update_mutex);
 	if(is_running)
 	{
 		uint64_t cur_tick = getCurTick();
@@ -354,6 +361,8 @@ void TimerWheel::update()
 
 void TimerWheel::autoUpdate()
 {
+	std::unique_lock<std::mutex> lock(m_quit_mutex);
+	m_quit = false;
 	std::thread t( [this](){ this->TimerWheel::autoUpdateThreadFun(); } );
 	t.detach();
 }
@@ -362,7 +371,8 @@ void TimerWheel::autoUpdateThreadFun()
 {
 	while(is_running)
 	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		// why 300, test from avg latency
+		std::this_thread::sleep_for(std::chrono::microseconds(300)); // milliseconds(1)
         update();
 	}
 	// 这里用信号会导致，先notify后wait
@@ -377,7 +387,8 @@ void TimerWheel::close()
 {
 	is_running = false;
 	std::unique_lock<std::mutex> lock(m_quit_mutex);
-	m_cv.wait(lock, [this](){ return this->m_quit; });
+	if(!m_quit)
+		m_cv.wait(lock, [this](){ return this->m_quit; });
 	//m_quit_sema.wait();
 	m_last_tick = 0;
 }

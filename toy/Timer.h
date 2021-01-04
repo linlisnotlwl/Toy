@@ -45,15 +45,18 @@ public:
 	void nextCycle(uint64_t cur_tick); // set to next expired_time
 	uint64_t getExpiredTick(){ return m_expired_tick; }
 	uint64_t getInterval(){ return m_interval; }
+	int32_t getCycleNum() { return m_cycle; }
+	uint32_t getExeTime() { return m_expired_count; }
 	void runTask();	// run callback
 	bool isFinished();
-	void incExpiredCount();
+	inline void incExpiredCount();
 
 private:
+	
 	CallbackFun m_cb;
 	//void * m_cb_data;
 	int32_t m_cycle;	// execute times, -1 means infinite
-	uint32_t m_expired_count; //
+	uint32_t m_expired_count = 0; // 已执行次数
 	uint64_t m_interval; // 每执行一次的间隔时间
 	//uint64_t m_id; // for delete
 	uint64_t m_expired_tick;
@@ -91,6 +94,7 @@ private:
 	//int m_wheel_level;
 	// TODO: 为每个（或每组）slot分配一个mutex，
 	// 触发是，先加锁，取出，并弹出该slot,运行任务，再查找到加入的槽位置，加锁，在插入
+	std::mutex m_slots_mutex;
 };
 
 static constexpr int MAX_WHEEL_NUM = 8;

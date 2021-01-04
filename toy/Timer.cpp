@@ -67,14 +67,15 @@ void Tick::runTask()
 bool Tick::isFinished()
 {
 	if(m_cycle < 0)
-		return true;
+		return false;
 	else
 		return m_expired_count >= static_cast<uint32_t>(m_cycle);
 }
 
 void Tick::incExpiredCount()
 {
-	m_expired_count++;
+	++m_expired_count;
+	//printf("    Tick::incExpiredCount(), %x\n", this);
 }
 
 // Tick implementation end.-------------------------------------------<Tick>
@@ -118,6 +119,7 @@ void Wheel::tick(uint64_t tick)
 			if(p->getExpiredTick() <= tick)
 			{
 				p->runTask();
+				//printf("run tick !!!\n");
 				p->incExpiredCount();
 
 				// circle
@@ -174,8 +176,9 @@ void Wheel::tick(uint64_t tick)
 				// }
 				
 			}
-			else // TODO: will it happend??
+			else //添加时，没有更新会导致此种状况出现 // will it happend?? yes // 也行可以在add中加个update试试？？
 			{
+				// printf("ExpiredTick bigger than cur tick !!!\n");
 				// find the insert wheel
 				uint64_t left = (p->getExpiredTick() - tick);
 				Wheel::Ptr insert_wheel = prev;
@@ -203,6 +206,7 @@ bool Wheel::addInSlot(uint64_t slot, Tick::Ptr tick_p)
 {
 	if(slot >= m_slot_num || tick_p->isFinished())
 		return false;
+	std::unique_lock<std::mutex> lock(m_slots_mutex);
 	m_slots[slot].push_front(tick_p);
 	return true;
 }
@@ -211,6 +215,7 @@ bool Wheel::delInSlot(uint64_t slot, Tick::Ptr tick_p)
 {
 	if(slot >= m_slot_num)
 		return false;
+	std::unique_lock<std::mutex> lock(m_slots_mutex);
 	auto it = std::find(m_slots[slot].begin(), m_slots[slot].end(), tick_p);
 	if(it != m_slots[slot].end())
 	{
@@ -306,8 +311,8 @@ void TimerWheel::start()
 bool TimerWheel::add(Tick::Ptr empty_tick, uint64_t start_after_the_time, 
 	Tick::CallbackFun cb, int32_t cycle, uint64_t interval)
 {
-	update();
-	std::unique_lock<std::mutex> lock(m_update_mutex);
+	//update(); 是否需要这个update？？
+	//std::unique_lock<std::mutex> lock(m_update_mutex);
 	uint64_t expired_time = getCurTick() + start_after_the_time;
 	empty_tick->setAll(expired_time, cb, cycle, interval);
 	
@@ -316,7 +321,7 @@ bool TimerWheel::add(Tick::Ptr empty_tick, uint64_t start_after_the_time,
 	//	return false;
 
 	//printf("Add Tick %u in location(%u,%u).\n", expired_time, location.first, location.second);
-	
+	//printf("cycle = %d, trigger time = %d.\n", empty_tick->getCycleNum(), empty_tick->getExeTime());
 	return m_wheel_group[location.first]->addInSlot(location.second, empty_tick);
 }
 
@@ -324,6 +329,7 @@ bool TimerWheel::add(uint64_t start_after_the_time, Tick::CallbackFun cb,
 	int32_t cycle, uint64_t interval)
 {
 	return add(std::make_shared<Tick>(), start_after_the_time, cb, cycle, interval);
+	// make_shared 调用的构造函数未初始化 expired_count,导致出现添加定时任务失败的bug，现已改正。
 }
 
 bool TimerWheel::del(Tick::Ptr tick_p)

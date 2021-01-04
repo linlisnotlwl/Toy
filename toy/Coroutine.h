@@ -6,7 +6,7 @@
 
 #include "Noncopyable.h"
 #include "Cohandler.h"
-#include "Queue.h" // for LinkBase
+//#include "Queue.h" // for LinkBase
 
 namespace Toy
 {

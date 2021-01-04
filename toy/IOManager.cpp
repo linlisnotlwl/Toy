@@ -1,5 +1,6 @@
 #include "IOManager.h"
 #include <sys/epoll.h>
+#include <unistd.h> // for close
 #include "Util.h"
 #include "Log.h"
 #include "ToyCo.h"
@@ -37,7 +38,7 @@ IOManager::IOManager()
     m_epoll_fd = epoll_create1(0);
     TOY_ASSERT(m_epoll_fd > 0);
 
-    epoll_event
+    //epoll_event
 }
 
 IOManager::~IOManager()
@@ -110,7 +111,7 @@ int IOManager::addEvent(int fd, Event event, CallBackFun cb)
         return -1;
     }
 
-    fd_ctx->events = fd_ctx->events | event;
+    fd_ctx->events = static_cast<Event>(fd_ctx->events | event);
     FdContext::EventContext & ectx = fd_ctx->getEventContext(event);
 
     // 在当前添加新事件场合下，要保证对应事件的ectx是未经过设定的
@@ -118,7 +119,7 @@ int IOManager::addEvent(int fd, Event event, CallBackFun cb)
 
     // TODO : 如何处理 ectx.ctx 的创建
    
-
+    return -1; //TODO
 }
 
 bool IOManager::delEvent(int fd, Event event)
@@ -139,7 +140,7 @@ bool IOManager::delEvent(int fd, Event event)
     {
         return false;
     } 
-    Event new_event = fd_ctx->events & ~event;
+    Event new_event = static_cast<Event>(fd_ctx->events & ~event);
     //int op = new_events != Event::NONE ? EPOLL_CTL_MOD : EPOLL_CTL_DEL;
     int ret = 0;
     if(new_event == Event::NONE)
@@ -163,6 +164,7 @@ bool IOManager::delEvent(int fd, Event event)
     fd_ctx->events = new_event;
     // TODO : reset fd_ctx->read or write ctx
     
+    return false; //TODO
     
 }
 
@@ -179,7 +181,7 @@ bool IOManager::finishEvent(int fd, Event event)
             return false;
     }
     std::unique_lock<MutexType> lock(fd_ctx->mutex);
-    Event new_event = fd_ctx->events & ~event;
+    Event new_event = static_cast<Event>(fd_ctx->events & ~event);
     //int op = new_events != Event::NONE ? EPOLL_CTL_MOD : EPOLL_CTL_DEL;
     int ret = 0;
     if(new_event == Event::NONE)

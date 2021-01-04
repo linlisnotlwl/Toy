@@ -19,7 +19,7 @@ void call_back_fun(Toy::Tick::Ptr tick)
     global_sum_time += cur_time - static_cast<double>(tick_time);
 }
 
-void call_back_two(void * data)
+void call_back_two()
 {
     std::cout << "Running CallBackFun of Tick one, at : " 
         << global_timer.getElapsedMillSecond() << std::endl;
@@ -101,11 +101,39 @@ static void test_multi_thread()
     global_tw.close();
 }
 
+static void readd_fun(Toy::TimerWheel::TimeDuration time, int num)
+{
+    if(num == 0)
+        return;
+    --num;
+    // NOTE !!!! 
+    // 在任务中添加任务会造成死锁，因为add会加锁，而update时也会加锁，
+    // 所以在执行任务时，是从update中的tick进入的，所以死锁了
+    // 已解决，可以重添加: add中删除了锁，在每个wheel的addInSlot中添加了锁
+    // FIXME: 重update，在执行任务中update定时器会造成死锁
+    bool state = global_tw.add(10, [time, num](){ readd_fun(time, num); });
+    if(!state)
+        printf("!!!!!Add failed.\n");
+    static int count = 0;
+    printf("Finished readd_fun %d.\n", ++count);
+}
+
+static void test_readd()
+{
+    global_tw.start();
+    global_tw.autoUpdate();
+    readd_fun(10, 100);
+    std::this_thread::sleep_for(std::chrono::milliseconds(11000));
+    global_tw.close();
+
+}
+
 int main()
 {
     global_timer.update();
     //test_timewheel();
-    test_multi_thread();
-    printf("Average latency: %f(ms)\n", global_sum_time / static_cast<double>(count));
+    //test_multi_thread();
+    //printf("Average latency: %f(ms)\n", global_sum_time / static_cast<double>(count));
+    test_readd();
     return 0;
 }

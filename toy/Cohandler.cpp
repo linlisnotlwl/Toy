@@ -73,13 +73,13 @@ void Cohandler::handler()
             lock1.lock(); // 确保下面的empty是安全的
             if(m_runnable_cos.empty())
             {
-                
-                waitForNewCos();
                 lock1.unlock();
+                waitForNewCos();
                 turnNew2Runnable();
                 continue;
             }
-
+            else
+                lock1.unlock();
         }
         lock1.lock();
         // TODO: 直接弹出该协程好像比较好
@@ -88,7 +88,7 @@ void Cohandler::handler()
         m_runnable_cos.pop_front();
 
         // this while-loop 消耗完runnable的所有协程任务
-        while(m_cur_running_co != nullptr; 
+        while(m_cur_running_co != nullptr
             && m_scheduler->isRunning()) // keeping running
         {
             //auto cur_co = m_cur_running_co;
@@ -96,7 +96,9 @@ void Cohandler::handler()
             m_cur_running_co->m_cohandler = this; // 这里设置的原因是，它有可能被调度到其他控制器
 
             lock1.unlock(); // 任务执行中可能出现的suspend，会改变队列
+            //printf("come out.\n");
             m_cur_running_co->swapIn();
+            //printf("come back.\n");
             lock1.lock();
 
             switch(m_cur_running_co->m_state)
@@ -160,6 +162,11 @@ Cohandler::SuspendInfo Cohandler::suspend(TimerWheel::TimeDuration dur)
         [si]() 
         {
             Cohandler::wakeup(si);
+            // bool state = Cohandler::wakeup(si);
+            // if(state)
+            //     printf("WakeUP Success !\n");
+            // else
+            //     printf("WakeUP Fail !\n");
         });
     return si;
 }
@@ -167,7 +174,7 @@ Cohandler::SuspendInfo Cohandler::suspend(TimerWheel::TimeDuration dur)
 bool Cohandler::wakeup(SuspendInfo si)
 {
     // TODO: 是否需要锁Coroutine
-    auto cohandler = getCurHandler();
+    auto cohandler = si.sus_co->getCohandler();
     return cohandler == nullptr ? false : cohandler->wakeupCo(si);
 }
 
@@ -180,9 +187,10 @@ bool Cohandler::wakeupCo(SuspendInfo si)
     if(it == m_waiting_cos.end())
     {
         fprintf(stderr, "Waking up a Co which is not in Waitting Queue.\n");
-        //TOY_ASSERT(false);
+        TOY_ASSERT(false);
         return false;
     }
+    m_waiting_cos.erase(it);
     lock1.unlock();
     si.sus_co->m_state = Coroutine::CoState::RUNNING;
     std::unique_lock<LockType> lock2(m_run_lock);
@@ -244,9 +252,10 @@ Cohandler::SuspendInfo Cohandler::suspendCo()
     //  add it to waitting list;
     // TODO: how to find its location, use hash? or SuspendInfo store the Iterator 
     m_waiting_cos.insert(cur_co); 
-    m_cur_running_co = nullptr;
+    //m_cur_running_co = nullptr; 还得是当前co，为了后面的yeild使用
     SuspendInfo ret;
     ret.sus_co = cur_co;
+
     return ret;
 }
 

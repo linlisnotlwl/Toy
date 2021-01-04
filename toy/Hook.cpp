@@ -8,6 +8,7 @@
 // void*dlsym(void*handle,const char*symbol)根据 动态链接库 操作句柄(handle)与符号(symbol)，返回符号对应的地址。
 // 即可以获取函数地址，也可以获取变量地址
 
+/*暂时
 #define HOOK_FUN(X) \ 
     X(sleep)
 
@@ -49,3 +50,6 @@ unsigned int sleep(unsigned int seconds)
 
 }
 } // extern "C"
+
+
+暂时*/

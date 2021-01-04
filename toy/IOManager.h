@@ -13,30 +13,15 @@ namespace Toy
 
 class IOManager : public Scheduler
 {
-
 public:
     typedef std::mutex MutexType;
     typedef std::function<void ()> CallBackFun;
-    struct FdContext;
-    typedef std::unordered_map<int, FdContext *> FdContextSet;
     enum Event
     {
         NONE = 0x0,
         READ = 0x1, //  EPOLL_EVENTS::EPOLLIN
         WRITE = 0x4 //  EPOLL_EVENTS::EPOLLOUT
     };
-    IOManager();
-    ~IOManager();
-    void closeAll();
-
-    int addEvent(int fd, Event event, CallBackFun cb = nullptr);
-    // delete specified event of fd
-    bool delEvent(int fd, Event event);
-    // trigger the event once and then delete it
-    bool finishEvent(int fd, Event event);
-    bool finishAll(int fd);
-
-    static IOManager * getCurrentIOManager();
 private:
     // 每个fd文件处理的context
     struct FdContext
@@ -56,6 +41,22 @@ private:
         Event events = NONE; // all events | together
         MutexType mutex;
     };
+public:
+    typedef std::unordered_map<int, FdContext *> FdContextSet;
+
+    IOManager();
+    ~IOManager();
+    void closeAll();
+
+    int addEvent(int fd, Event event, CallBackFun cb = nullptr);
+    // delete specified event of fd
+    bool delEvent(int fd, Event event);
+    // trigger the event once and then delete it
+    bool finishEvent(int fd, Event event);
+    bool finishAll(int fd);
+
+    static IOManager * getCurrentIOManager();
+
 private:
     void worker(); // handler epoll events
     //void setFdctxsCount(size_t count); use it while using vector to store factxs

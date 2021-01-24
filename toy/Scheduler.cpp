@@ -1,5 +1,6 @@
 #include "Scheduler.h"
 #include "Util.h"
+#include "Hook.h"
 namespace Toy
 {
 
@@ -30,6 +31,7 @@ void Scheduler::start(size_t thread_num, bool using_cur_thread)
     
     if(!is_running)
     {
+        enableHook();
         is_running = true;
 
         m_timer->start();
@@ -78,7 +80,7 @@ void Scheduler::stop()
         std::unique_lock<std::mutex> lock(m_handlers_mutex);
         for(auto & p : m_all_handlers)
             p->m_sema.notify();
-        
+        disableHook();
     }
 }
 

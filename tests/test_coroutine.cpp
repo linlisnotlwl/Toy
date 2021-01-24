@@ -76,11 +76,36 @@ static void test_co_suspend()
     //TOY_CO_CREATE( [](){suspend_fun(4, 1000);} );
 }
 
+static Toy::Cohandler::SuspendInfo global_si;
+static void wait_for_wakeup()
+{
+    printf("!Waiting for a handsome man to wake me up\n");
+    TOY_CO_SUSPEND_NOWAKUP(global_si);
+    TOY_CO_YEILD;
+    printf("!I have been waken up.Thank you! mua! (*╯3╰)\n");
+
+}
+
+static void wakeup_waiting()
+{
+    TOY_CO_SUSPEND(1000);
+    TOY_CO_YEILD;
+    printf("co address = %d\n", global_si.sus_co);
+    TOY_CO_WAKEUP(global_si); 
+}
+
+static void test_wakeup()
+{
+    TOY_CO_CREATE(wait_for_wakeup);
+    TOY_CO_CREATE(wakeup_waiting);
+}
 int main()
 {
     //test_co_yeild();
     //test_co_create();
-    test_co_suspend();
+    //test_co_suspend();
+    test_wakeup();
+
     printf("START!!!\n");
     TOY_CO_START;
     return 0;

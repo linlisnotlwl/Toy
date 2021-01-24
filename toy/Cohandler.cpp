@@ -13,7 +13,7 @@ Cohandler::Cohandler(Scheduler * sd, int id)
 Cohandler::~Cohandler()
 {
     m_sema.notify();
-    // TODO: 是直接清空吗
+    // TODO: 是直接清空吗   要锁吗？？
     for(auto & p : m_waiting_cos)
         delete p;
     m_waiting_cos.clear();
@@ -82,7 +82,7 @@ void Cohandler::handler()
                 lock1.unlock();
         }
         lock1.lock();
-        // TODO: 直接弹出该协程好像比较好
+        // 直接弹出该协程好像比较好
         // get a coroutine to run
         m_cur_running_co = m_runnable_cos.front();
         m_runnable_cos.pop_front();
@@ -113,8 +113,7 @@ void Cohandler::handler()
                 }
                 case Coroutine::CoState::SUSPEND : 
                 {
-                    // wake it up after a setting time
-                    // TODO: 因为调用suspend的时候会处理？？还是回到这里处理呢
+                    // 因为调用suspend的时候会处理？？还是回到这里处理呢 不会
                     m_cur_running_co = nullptr;
                     break;
                 }
@@ -150,6 +149,14 @@ void Cohandler::yeild()
     
 }
 
+Cohandler::SuspendInfo Cohandler::suspend()
+{
+    auto handler = getCurHandler();
+    TOY_ASSERT(handler != nullptr);
+    auto si = handler->suspendCo();
+    return si;
+}
+
 Cohandler::SuspendInfo Cohandler::suspend(TimerWheel::TimeDuration dur)
 {
     auto handler = getCurHandler();
@@ -173,6 +180,8 @@ Cohandler::SuspendInfo Cohandler::suspend(TimerWheel::TimeDuration dur)
 
 bool Cohandler::wakeup(SuspendInfo si)
 {
+    if(si.sus_co == nullptr)
+        return false;
     // TODO: 是否需要锁Coroutine
     auto cohandler = si.sus_co->getCohandler();
     return cohandler == nullptr ? false : cohandler->wakeupCo(si);
@@ -250,7 +259,7 @@ Cohandler::SuspendInfo Cohandler::suspendCo()
     cur_co->m_state = Coroutine::CoState::SUSPEND;
     std::unique_lock<LockType> lock(m_wait_lock); // non-static member var can not be used in static function
     //  add it to waitting list;
-    // TODO: how to find its location, use hash? or SuspendInfo store the Iterator 
+    // how to find its location, use hash? or SuspendInfo store the Iterator 
     m_waiting_cos.insert(cur_co); 
     //m_cur_running_co = nullptr; 还得是当前co，为了后面的yeild使用
     SuspendInfo ret;

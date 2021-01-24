@@ -38,17 +38,17 @@ public:
   
     // 提供给用户使用，用户不用关注当前是哪个Cohandler
     static void yeild();
-    static SuspendInfo suspend(TimerWheel::TimeDuration dur);
-    //TODO
-    //static void suspend(Time);
+    static SuspendInfo suspend(); // 挂起协程，等待别人唤醒它
+    static SuspendInfo suspend(TimerWheel::TimeDuration dur); // 挂起协程，等待一段时间后自动唤醒
     static bool wakeup(SuspendInfo si);
 
+    static Coroutine * getCurCoroutine();
 private:
     void handler(); // 不提供给外部使用
+
     // 获取当前线程的handler
     static Cohandler * & getCurHandler();
     static Scheduler * getCurScheduler();
-    static Coroutine * getCurCoroutine();
     //static CoIterator getCurCoIterator();
 
     // 线程安全

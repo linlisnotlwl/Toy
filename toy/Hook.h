@@ -19,7 +19,7 @@
 
 namespace Toy
 {
-extern void initHook();
+//extern void initHook();
 extern void enableHook();
 void disableHook();
 bool isHook();

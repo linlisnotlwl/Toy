@@ -15,8 +15,12 @@ else()
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
-set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -rdynamic -g3 -O0 -Wall  -ggdb")# -fsanitize=address
-set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -rdynamic -O2 -Wall -DNDEBUG")
+set(ASAN_FLAGS "-fsanitize=address -fno-omit-frame-pointer -fsanitize-recover=address") #AddressSanitizer
+set(TSAN_FLAGS "-fsanitize=memory -fPIE -pie -fno-omit-frame-pointer") #ThreadSanitizer
+set(MSAN_FLAGS "-fsanitize=memory -fsanitize-memory-track-origins -fPIE -pie -fno-omit-frame-pointer") #MemorySanitizer
+
+set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -rdynamic -g3 -O0 -Wall -ggdb ${ASAN_FLAGS}")
+set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -rdynamic -O2 -Wall -DNDEBUG ")
 
 #add_subdirectory(toy)
 

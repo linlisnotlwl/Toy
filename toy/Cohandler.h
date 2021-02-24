@@ -20,11 +20,18 @@ class Cohandler : public Noncopyable
 {
     friend class Scheduler;
 public:
-    struct SuspendInfo
+    struct SuspendInfo : public std::enable_shared_from_this<SuspendInfo>
     {
+        typedef std::shared_ptr<SuspendInfo> Ptr;
         //typedef std::weak_ptr<Coroutine>  WatchPtr;
         typedef Coroutine * WatchPtr;
-        WatchPtr sus_co; // TODO： 有用吗？ 还是说全部换成智能指针
+        typedef std::mutex MutexType;
+        SuspendInfo(WatchPtr _sus_co) : sus_co(_sus_co) {}
+        WatchPtr sus_co = nullptr; // TODO： 有用吗？ 还是说全部换成智能指针
+        // -1:未唤醒; 1:timer唤醒; 2:事件唤醒
+        // wakeup函数不改变wakeup状态，由调用wakeup的使用者设置
+        short wakeup_state = -1; 
+        MutexType mutex;
     };  
 public:
     //typedef Queue<Coroutine> CoQueue;
@@ -38,9 +45,9 @@ public:
   
     // 提供给用户使用，用户不用关注当前是哪个Cohandler
     static void yeild();
-    static SuspendInfo suspend(); // 挂起协程，等待别人唤醒它
-    static SuspendInfo suspend(TimerWheel::TimeDuration dur); // 挂起协程，等待一段时间后自动唤醒
-    static bool wakeup(SuspendInfo si);
+    static SuspendInfo::Ptr suspend(); // 挂起协程，等待别人唤醒它
+    static SuspendInfo::Ptr suspend(TimerWheel::TimeDuration dur); // 挂起协程，等待一段时间后自动唤醒
+    static bool wakeup(SuspendInfo::Ptr si);
 
     static Coroutine * getCurCoroutine();
 private:
@@ -58,8 +65,8 @@ private:
     void waitForNewCos();
 
     void yeildCo();
-    SuspendInfo suspendCo();
-    bool wakeupCo(SuspendInfo);
+    SuspendInfo::Ptr suspendCo();
+    bool wakeupCo(SuspendInfo::Ptr);
 
     std::atomic<bool> is_running;
     std::atomic<bool> is_waitting;

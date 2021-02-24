@@ -25,6 +25,7 @@ find_package (Threads)
 
 #
 
+
 add_executable(toy_hook.out test_hook.cpp ${DIR_SRCS})
 target_link_libraries(toy_hook.out libtoyjson.a)
 target_link_libraries (toy_hook.out ${CMAKE_THREAD_LIBS_INIT})
@@ -34,10 +35,13 @@ target_link_libraries(toy_hook.out ${CMAKE_DL_LIBS})
 
 if(false)
 
-add_executable(toy_timewheel.out test_timer.cpp ../toy/Timer.cpp ../toy/Util.cpp)
-target_link_libraries (toy_timewheel.out ${CMAKE_THREAD_LIBS_INIT})
 
-add_executable(toy_log.out test_log.cpp ${DIR_SRCS})
+add_executable(toy_timewheel.out test_timer.cpp ${DIR_SRCS})
+target_link_libraries (toy_timewheel.out ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(toy_timewheel.out libtoyjson.a)
+target_link_libraries(toy_timewheel.out ${CMAKE_DL_LIBS})
+
+add_executable(toy_log.out test_log.cpp ../toy/Log.cpp ../toy/Config.cpp ../toy/ThreadPool.cpp)
 target_link_libraries(toy_log.out libtoyjson.a)
 target_link_libraries (toy_log.out ${CMAKE_THREAD_LIBS_INIT})
 

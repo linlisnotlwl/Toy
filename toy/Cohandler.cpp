@@ -149,7 +149,7 @@ void Cohandler::yeild()
     
 }
 
-Cohandler::SuspendInfo Cohandler::suspend()
+Cohandler::SuspendInfo::Ptr Cohandler::suspend()
 {
     auto handler = getCurHandler();
     TOY_ASSERT(handler != nullptr);
@@ -157,7 +157,7 @@ Cohandler::SuspendInfo Cohandler::suspend()
     return si;
 }
 
-Cohandler::SuspendInfo Cohandler::suspend(TimerWheel::TimeDuration dur)
+Cohandler::SuspendInfo::Ptr Cohandler::suspend(TimerWheel::TimeDuration dur)
 {
     auto handler = getCurHandler();
     TOY_ASSERT(handler != nullptr);
@@ -168,31 +168,41 @@ Cohandler::SuspendInfo Cohandler::suspend(TimerWheel::TimeDuration dur)
     getCurScheduler()->getTimer()->add(dur, 
         [si]() 
         {
-            Cohandler::wakeup(si);
-            // bool state = Cohandler::wakeup(si);
-            // if(state)
-            //     printf("WakeUP Success !\n");
+            std::unique_lock<SuspendInfo::MutexType> lock(si->mutex);
+            if(si->wakeup_state != -1)
+            {
+                // TODO: log
+                return;
+            }
+            bool state = Cohandler::wakeup(si);
+            if(state)
+            {
+                si->wakeup_state = 1; // 
+                //printf("WakeUP Success !\n");
+            }
             // else
             //     printf("WakeUP Fail !\n");
         });
     return si;
 }
 
-bool Cohandler::wakeup(SuspendInfo si)
+bool Cohandler::wakeup(SuspendInfo::Ptr si)
 {
-    if(si.sus_co == nullptr)
+    if(si == nullptr || si->sus_co == nullptr)
         return false;
     // TODO: 是否需要锁Coroutine
-    auto cohandler = si.sus_co->getCohandler();
+    auto cohandler = si->sus_co->getCohandler();
     return cohandler == nullptr ? false : cohandler->wakeupCo(si);
 }
 
-bool Cohandler::wakeupCo(SuspendInfo si)
+bool Cohandler::wakeupCo(SuspendInfo::Ptr si)
 {
-    TOY_ASSERT(si.sus_co != nullptr);
-    TOY_ASSERT(si.sus_co->m_state == Coroutine::CoState::SUSPEND);
+    TOY_ASSERT(si != nullptr);
+    TOY_ASSERT(si->sus_co != nullptr);
+    TOY_ASSERT(si->sus_co->m_state == Coroutine::CoState::SUSPEND);
+    // 锁着阻塞队列
     std::unique_lock<LockType> lock1(m_wait_lock);
-    auto it = m_waiting_cos.find(si.sus_co);
+    auto it = m_waiting_cos.find(si->sus_co);
     if(it == m_waiting_cos.end())
     {
         fprintf(stderr, "Waking up a Co which is not in Waitting Queue.\n");
@@ -201,9 +211,10 @@ bool Cohandler::wakeupCo(SuspendInfo si)
     }
     m_waiting_cos.erase(it);
     lock1.unlock();
-    si.sus_co->m_state = Coroutine::CoState::RUNNING;
+    si->sus_co->m_state = Coroutine::CoState::RUNNING;
+    // 锁住运行队列
     std::unique_lock<LockType> lock2(m_run_lock);
-    m_runnable_cos.push_back(si.sus_co);
+    m_runnable_cos.push_back(si->sus_co);
     lock2.unlock();
     if(is_waitting)
     {
@@ -247,7 +258,7 @@ void Cohandler::yeildCo()
 
 }
 
-Cohandler::SuspendInfo Cohandler::suspendCo()
+Cohandler::SuspendInfo::Ptr Cohandler::suspendCo()
 {
     Coroutine * cur_co = getCurCoroutine();
     TOY_ASSERT(cur_co != nullptr);
@@ -262,8 +273,7 @@ Cohandler::SuspendInfo Cohandler::suspendCo()
     // how to find its location, use hash? or SuspendInfo store the Iterator 
     m_waiting_cos.insert(cur_co); 
     //m_cur_running_co = nullptr; 还得是当前co，为了后面的yeild使用
-    SuspendInfo ret;
-    ret.sus_co = cur_co;
+    SuspendInfo::Ptr ret = std::make_shared<SuspendInfo>(cur_co);
 
     return ret;
 }

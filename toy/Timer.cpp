@@ -1,6 +1,6 @@
 #include "Timer.h"
 #include <algorithm>
-
+#include "Log.h"
 #include "Util.h"
 namespace Toy
 {
@@ -37,13 +37,19 @@ long long TinyTimer::getElapsedMicroSecond()
 // Tick implementation start:
 Tick::Tick()
 {
+	//TOY_LOG_DEBUG << "Tick constructing: " << this;
+}
 
+Tick::~Tick()
+{
+	//TOY_LOG_DEBUG << "Destructing Tick : " << this;
+	//printf("Tick::~Tick(), from %llu.\n", this);
 }
 
 Tick::Tick(uint64_t expired_tick, CallbackFun cb, int32_t cycle, uint64_t interval)
 	: m_cb(cb), m_cycle(cycle), m_interval(interval), m_expired_tick(expired_tick)
 {
-
+	//TOY_LOG_DEBUG << "Tick constructing: " << this;
 }
 
 void Tick::setAll(uint64_t expired_tick, CallbackFun cb, int32_t cycle, uint64_t interval)
@@ -87,14 +93,14 @@ Wheel::Wheel(uint64_t slot_num, uint64_t slot_interval)
 	m_slots(std::vector<SlotType>(slot_num, SlotType())), m_cur_slot(0), 
 	prev(nullptr), next(nullptr)
 {
-
+	TOY_LOG_DEBUG << "Wheel constructing : " << this;
 }
 
 Wheel::~Wheel()
 {
-	// for (auto &s : m_slots)
-	// 	for (auto &p : s)
-	// 		delete p;
+	for (auto &s : m_slots)
+		s.clear();
+	TOY_LOG_DEBUG << "Wheel::~Wheel finished : " << this;
 }
 
 void Wheel::tick(uint64_t tick)
@@ -219,6 +225,7 @@ bool Wheel::delInSlot(uint64_t slot, Tick::Ptr tick_p)
 	auto it = std::find(m_slots[slot].begin(), m_slots[slot].end(), tick_p);
 	if(it != m_slots[slot].end())
 	{
+		TOY_LOG_DEBUG << "Delete Tick::Ptr in Wheel Success.";
 		m_slots[slot].erase(it);
 		return true;
 	}
@@ -269,6 +276,7 @@ TimerWheel::TimerWheel(int group_num, uint64_t base_interval)
 	: m_last_tick(0),  is_running(false),//m_closest_tick(0),
 	m_base_interval(base_interval), m_quit(true)
 {
+	TOY_LOG_DEBUG << "TimerWheel contructing, from " << this;
 	if(0 >= group_num || MAX_WHEEL_NUM < group_num)
 		group_num = DEFAULT_WHEEL_NUM;
 	//m_wheel_group = WheelGroup(group_num, nullptr);
@@ -299,6 +307,8 @@ TimerWheel::~TimerWheel()
 	close();
 	for(auto & p : m_wheel_group)
 		delete p;
+	//printf("TimerWheel::~TimerWheel, from %llu.\n", this);
+	TOY_LOG_DEBUG << "TimerWheel::~TimerWheel, from " << this;
 }
 
 void TimerWheel::start()

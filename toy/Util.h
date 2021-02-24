@@ -21,7 +21,15 @@ std::string demangle(const char *symbol);// get function name
 std::string Backtrace(int skip_layer, bool & flag);
 void Assert(const char * file, int line);
 
-
+template<typename ReturnType, typename CallFun, typename ... Args>
+ReturnType CallWithoutINTR(CallFun fun, Args && ... args)
+{
+re_call:
+    ReturnType ret = fun(std::forward<Args>(args)...);
+    if(ret == -1 && errno == EINTR)
+        goto re_call;
+    return ret;
+}
 // struct ListNode
 // {
 //     ListNode * prev = nullptr;

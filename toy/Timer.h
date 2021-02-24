@@ -30,7 +30,7 @@ private:
 	std::chrono::time_point<std::chrono::high_resolution_clock> _begin_timepoint;	// start time point
 };
 
-class Tick
+class Tick : public std::enable_shared_from_this<Tick>
 {
 public:
 	// TODO: callback函数改成模板参数，从而可以实现不同的函数形式
@@ -38,6 +38,7 @@ public:
 	typedef std::shared_ptr<Tick> Ptr;
 
 	Tick();
+	~Tick();
 	Tick(uint64_t expired_tick, CallbackFun cb, 
 		int32_t cycle = 1, uint64_t interval = 1);
 	void setAll(uint64_t expired_tick, CallbackFun cb, 
@@ -63,7 +64,7 @@ private:
 };
 
 static constexpr uint64_t DEFAULT_SLOT_NUM = 256;
-class Wheel
+class Wheel //: std::enable_shared_from_this<Wheel>
 {
 public:
 	typedef std::list<Tick::Ptr> SlotType;

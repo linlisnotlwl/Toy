@@ -166,7 +166,7 @@ LogStream::~LogStream()
 	flush();
 	fclose(m_file);
 	delete[] m_write_buf;
-	printf("count = %d\n", count);
+	//printf("count = %d\n", count);
 }
 
 void LogStream::append(const char * data, size_t len)
@@ -353,6 +353,7 @@ void Logger::rmAppender(LogAppender::Ptr app_ptr)
 LogManager::LogManager(const std::string & config_file_name) 
 	: m_logger_ptr(std::make_shared<Logger>("main_logger"))
 {
+	//printf("creating LogManager.\n");
 	if(!Config::loadConfig(config_file_name))
 	{
 		//m_logger_ptr->addAppender(std::make_shared<Toy::StdoutAppender>());

@@ -10,48 +10,52 @@ namespace Toy
 // The discussion of thread-safe singleton:
 // (1) using static local member (thread-safe after C++11):
 //     https://stackoverflow.com/questions/1661529/is-meyers-implementation-of-the-singleton-pattern-thread-safe
-//template<typename T>
-//class Singleton : Noncopyable      // default private: set base class's public & protected members as it's private members
-//{
-//public:
-//    static T & getInstance()
-//    {
-//        static T instance;     // without using new
-//        return instance;
-//    }
-//private:
-//	Singleton() = default;
-//	~Singleton() = default;
-//};
+template<typename T>
+class Singleton : Noncopyable      // default private: set base class's public & protected members as it's private members
+{
+public:
+   static T & getInstance()
+   {
+       static T instance;     // without using new
+       return instance;
+   }
+private:
+	Singleton() = default;
+	~Singleton() = default;
+};
 
 
 // (2) using call_once (C++11 support)	 // same as pthread_once()
-template<typename T>
-class Singleton : Noncopyable
-{
-public:
-	typedef std::unique_ptr<T> Ptr;
-    static T & getInstance()
-    {
-        static std::once_flag flag;
-		//static Ptr m_instance_ptr;
-		// it can only use default construct of class T.
-		// if we want to use other construct,
-		// we can add another level of indirection with template specialization.
-		std::call_once(flag, []() { m_instance_ptr.reset(new T()); });
+// template<typename T>
+// class Singleton : Noncopyable
+// {
+// public:
+// 	typedef std::unique_ptr<T> Ptr;
+//     static T & getInstance()
+//     {
+//         static std::once_flag flag;
+// 		//static Ptr m_instance_ptr;
+// 		// it can only use default construct of class T.
+// 		// if we want to use other construct,
+// 		// we can add another level of indirection with template specialization.
+// 		std::call_once(flag, []() { m_instance_ptr.reset(new T()); });
 
-        // Note: It could be nullptr after destructing.
-        // So it will occur some bug in multi-threads because of the uncertain sequence of destructing.
-        assert(m_instance_ptr != nullptr);  
-        return *m_instance_ptr;
-    }
-private:
-    static Ptr m_instance_ptr;
-    Singleton() = default;
-    ~Singleton() = default;
-};
-template<typename T>
-typename Singleton<T>::Ptr Singleton<T>::m_instance_ptr = nullptr;
+//         // Note: It could be nullptr after destructing.
+//         // So it will occur some bug in multi-threads because of the uncertain sequence of destructing.
+//         // 出现异常的情况：
+//         // 如果是一个静态对象，其中调用了该单例对象，则在程序结束时可能会出现nullptr，取决于静态对象的析构顺序
+//         // 所以暂时选择了方法（一）
+//         assert(m_instance_ptr != nullptr); 
+
+//         return *m_instance_ptr;
+//     }
+// private:
+//     static Ptr m_instance_ptr;
+//     Singleton() = default;
+//     ~Singleton() = default;
+// };
+// template<typename T>
+// typename Singleton<T>::Ptr Singleton<T>::m_instance_ptr = nullptr;
 
 
 //// (3) eager initialize : initialize at the very first beginning

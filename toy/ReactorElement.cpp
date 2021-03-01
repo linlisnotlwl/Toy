@@ -45,7 +45,7 @@ IOEvent turnEpollEvent2IOEvent(uint32_t epoll_event)
     IOEvent io_event = IOEvent::NONE;
     if(epoll_event & EPOLLIN)
         io_event = static_cast<IOEvent>(io_event |  IOEvent::IN);
-    if(io_event & EPOLLOUT)
+    if(epoll_event & EPOLLOUT)
         io_event = static_cast<IOEvent>(io_event |  IOEvent::OUT);
     if(epoll_event & EPOLLERR)
         io_event = static_cast<IOEvent>(io_event |  IOEvent::ERROR);
@@ -61,7 +61,7 @@ IOEvent turnPollEvent2IOEvent(short poll_event)
     IOEvent io_event = IOEvent::NONE;
     if(poll_event & (POLLIN | POLLRDBAND | POLLRDNORM))
         io_event = static_cast<IOEvent>(io_event | IOEvent::IN);
-    if(io_event & (POLLOUT | POLLWRBAND | POLLWRNORM))
+    if(poll_event & (POLLOUT | POLLWRBAND | POLLWRNORM))
         io_event = static_cast<IOEvent>(io_event | IOEvent::OUT);
     if(poll_event & POLLERR)
         io_event = static_cast<IOEvent>(io_event | IOEvent::ERROR);
@@ -74,7 +74,7 @@ IOEvent turnPollEvent2IOEvent(short poll_event)
     return io_event;
 }
 
-ReactorElement::ReactorElement(int fd) : m_fd(fd)
+ReactorElement::ReactorElement(int fd) : m_fd(fd), m_event(IOEvent::NONE)
 {
     // TODO
 
@@ -101,7 +101,7 @@ bool ReactorElement::add(Reactor * reactor, IOEvent io_event, const Entry & entr
             return false;
         }
         m_event = promise_event;
-        addEntryWithoutLock(new_add_event, entry);
+        addEntryWithoutLock(new_add_event, entry); // 前面有加锁，放在这里就好了
     }
 
     return true;
@@ -156,7 +156,12 @@ void ReactorElement::triggerEntryListWithoutLock(EntryList & entry_list)
 {
     for(const auto & entry : entry_list)
     {
-        Cohandler::wakeup(entry.si);
+        // TODO: wakeup_state 是否要加锁,设置成atomic？？
+        if(entry.si->wakeup_state == -1)
+        {
+            entry.si->wakeup_state = 2;
+            Cohandler::wakeup(entry.si);
+        }    
     }
     entry_list.clear();
 }

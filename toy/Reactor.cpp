@@ -1,6 +1,7 @@
 #include "Reactor.h"
 #include "FdManager.h"
 #include "Util.h" // for CallWithoutINTR
+#include "Log.h"
 #include <unistd.h> // for close
 #include <sys/epoll.h>
 
@@ -77,6 +78,7 @@ bool EpollReactor::addEvent(int fd, IOEvent new_event, IOEvent promise_event)
     int op = new_event == promise_event ? EPOLL_CTL_ADD : EPOLL_CTL_MOD;
     //是否需要屏蔽中断，为什么? 内部应该处理中断，以提供给外部统一的状态
     //int res = epoll_ctl(m_epoll_fd, op, fd, &ep_event);
+    TOY_LOG_DEBUG << "EpollReactor addEvent, op = " << op << "(1:EPOLL_CTL_ADD;2:EPOLL_CTL_MOD)";
     int res = CallWithoutINTR<int>(::epoll_ctl, m_epoll_fd, op, fd, &ep_event);
     
     return res == 0;
@@ -108,8 +110,11 @@ void EpollReactor::run()
         {
             auto fd_ctx = FdMgr::getInstance().getFdCtx(events[i].data.fd);
             if(!fd_ctx)
-                continue;
+                continue;            
+            TOY_LOG_DEBUG << "epollReactor trigger. fd = " << fd_ctx->getFd() 
+                << ", epoll_event = " << events[i].events << "(1:in; 4:out)";
             fd_ctx->trigger(this, turnEpollEvent2IOEvent(events[i].events));
+
         }
     }
     m_sema.notify();

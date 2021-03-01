@@ -95,6 +95,9 @@ void threadTestFun(int id)
     // global_tw.add(tick3_p, 1000, std::bind(call_back_fun, tick3_p), INT32_MAX, 1001);
     // global_tw.add(tick4_p, 10, std::bind(call_back_fun, tick4_p), INT32_MAX, 2);
     // NOTE: bind指针指针会导致指针的释放不符合预期！！！！程序结束时出现Memory Leak
+    //       bind绑定shared_ptr,function保存一份引用，引用计数加1，
+    //       而function会传给在tick本身的m_cb，m_cb保持一份引用，导致循环引用
+    //       因此可以使用weak_ptr或者直接传递this。
     // TODO: 删除add（PTR）的接口，不由用户掌握tick指针。考虑给用户提供一个专属tickID
     global_tw.add(tick1_p, 3, [](){ printf("Running tick1_p.\n"); }, INT32_MAX, 50);
     global_tw.add(tick2_p, 10, [](){ printf("Running tick2_p.\n"); }, INT32_MAX, 4);

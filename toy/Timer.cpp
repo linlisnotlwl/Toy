@@ -93,14 +93,14 @@ Wheel::Wheel(uint64_t slot_num, uint64_t slot_interval)
 	m_slots(std::vector<SlotType>(slot_num, SlotType())), m_cur_slot(0), 
 	prev(nullptr), next(nullptr)
 {
-	TOY_LOG_DEBUG << "Wheel constructing : " << this;
+	//TOY_LOG_DEBUG << "Wheel constructing : " << this;
 }
 
 Wheel::~Wheel()
 {
 	for (auto &s : m_slots)
 		s.clear();
-	TOY_LOG_DEBUG << "Wheel::~Wheel finished : " << this;
+	//TOY_LOG_DEBUG << "Wheel::~Wheel finished : " << this;
 }
 
 void Wheel::tick(uint64_t tick)

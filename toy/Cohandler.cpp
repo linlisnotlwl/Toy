@@ -1,5 +1,6 @@
 #include "Cohandler.h"
 #include "Util.h"
+#include "Log.h"
 
 namespace Toy
 {
@@ -13,9 +14,13 @@ Cohandler::Cohandler(Scheduler * sd, int id)
 Cohandler::~Cohandler()
 {
     m_sema.notify();
-    // TODO: 是直接清空吗   要锁吗？？
+    // TODO: 是直接清空吗   要锁吗？？ 要的，否则在Done状态下，会出现use-after-free错误
+
     for(auto & p : m_waiting_cos)
+    {
+        TOY_LOG_DEBUG << "~Cohandler: delete " << p;
         delete p;
+    }
     m_waiting_cos.clear();
     for(auto & p : m_new_cos)
         delete p;
@@ -123,6 +128,7 @@ void Cohandler::handler()
                     // TODO: Add it to a reuse list: 等待一段时间没有重用就删除
                     m_co_count--;
                     delete m_cur_running_co;
+                    TOY_LOG_DEBUG << "Coroutine Done, delete " << m_cur_running_co;
                     m_cur_running_co = nullptr;
                     //printf("Co Done.\n");
                     break;
@@ -209,6 +215,7 @@ bool Cohandler::wakeupCo(SuspendInfo::Ptr si)
         TOY_ASSERT(false);
         return false;
     }
+    TOY_LOG_DEBUG << "wakeupCo. erase " << *it << "from waitting co queue.";
     m_waiting_cos.erase(it);
     lock1.unlock();
     si->sus_co->m_state = Coroutine::CoState::RUNNING;
@@ -271,10 +278,10 @@ Cohandler::SuspendInfo::Ptr Cohandler::suspendCo()
     std::unique_lock<LockType> lock(m_wait_lock); // non-static member var can not be used in static function
     //  add it to waitting list;
     // how to find its location, use hash? or SuspendInfo store the Iterator 
-    m_waiting_cos.insert(cur_co); 
+    m_waiting_cos.insert(cur_co); // 后面wakeup时得删除
     //m_cur_running_co = nullptr; 还得是当前co，为了后面的yeild使用
     SuspendInfo::Ptr ret = std::make_shared<SuspendInfo>(cur_co);
-
+    TOY_LOG_DEBUG << "Suspend Co = " << cur_co;
     return ret;
 }
 

@@ -220,7 +220,8 @@ LogStream & LogStream::operator<<(std::string & str)
 void LogStream::threadFun()
 {
 	//using namespace std::chrono_literals; // c++14
-	std::chrono::seconds wait_time(m_wait_seconds);
+
+	std::chrono::milliseconds wait_time(10);
 	//m_cur_buffer.reset(new Buffer());
 	//m_next_buffer.reset(new Buffer());
 
@@ -354,10 +355,10 @@ LogManager::LogManager(const std::string & config_file_name)
 	: m_logger_ptr(std::make_shared<Logger>("main_logger"))
 {
 	//printf("creating LogManager.\n");
-	if(!Config::loadConfig(config_file_name))
+	if(!Config::loadConfig(config_file_name)) // 没有配置文件
 	{
 		//m_logger_ptr->addAppender(std::make_shared<Toy::StdoutAppender>());
-		m_logger_ptr->addAppender(std::make_shared<Toy::FileAppender>("log.txt"));
+		m_logger_ptr->addAppender(std::make_shared<Toy::FileAppender>("log.txt")); // 添加一个文件appender
 	}
 	else
 	{

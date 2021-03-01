@@ -1,4 +1,5 @@
 #include "FdManager.h"
+#include "Log.h"
 
 
 namespace Toy
@@ -33,6 +34,7 @@ FdContext::Ptr FdManager::createFdCtx(int fd, FdContext::FdType fd_type, SocketA
     {
         auto ptr = std::make_shared<FdContext>(fd, fd_type, sock_attribute);
         m_all_fds[fd] = ptr;
+        TOY_LOG_DEBUG << "Create FdCtx in FdMgr. fd = " << ptr->getFd() << ", real fd = " << fd;
         return ptr;
     }
     else // TODO: reset fdctx

@@ -31,14 +31,14 @@ public:
     explicit FdContext(int fd, FdType fd_type, SocketAttribute sock_attribute);
     bool isSocket() const { return m_fd_type == FdType::SOCKET; }
     bool isClose() const { return m_is_close; }
-    void setNonBlock(bool flag) { m_is_nonblocking = flag; }
+    void setNonBlock(bool is_nonblocking);
     bool isNonBlocking() const { return m_is_nonblocking; }
     bool isTCPSocket() const 
     {
         return isSocket() && m_sock_attribute.type == SOCK_STREAM;
     }
     //void reset(int fd, FdType fd_type, SocketAttribute sock_attribute);
-    int getFd() const { return m_fd; };
+    
     FdContext::Ptr clone(int newfd);
     void close();
     void setSocketTimeoutMicroSecond(int optname, int microseconds);
@@ -47,7 +47,8 @@ public:
     SocketAttribute getSocketAttribute() { return m_sock_attribute; }
     void setSocketAttribute(const SocketAttribute & sa) { m_sock_attribute = sa; }
 private:
-    int m_fd;
+    //void setNonBlockMember(bool is_nonblocking) { m_is_nonblocking = is_nonblocking; }
+    //int m_fd;
     FdType m_fd_type;
     bool m_is_close = false;
     bool m_is_nonblocking = false;

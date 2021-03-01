@@ -73,10 +73,12 @@ int IOMultiplexing(FdContext::Ptr fd_ctx, IOEvent event,
     // 添加event到Reactor，进行实践监控
     if(!Reactor::getReactor(fd_ctx->getFd()).add(fd_ctx->getFd(), event, entry))
     {
+        TOY_LOG_DEBUG << "Reactor add event error";
+        //Cohandler::wakeup(entry.si);
         return -1;
     }
     
-    
+    TOY_LOG_DEBUG << "Co_yeild. wakeup state = " << entry.si->wakeup_state;
     // yeild出，等待唤醒
     TOY_CO_YEILD;
 
@@ -315,7 +317,13 @@ int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
         return connect_sys(sockfd, addr, addrlen);
     
     // 调用非阻塞的connect
+    fd_ctx->setNonBlock(true);
     int res = connect_sys(sockfd, addr, addrlen);
+    TOY_LOG_DEBUG << "NonBlock System connect return = " << res;
+    fd_ctx->setNonBlock(false);
+
+
+
     //    EINPROGRESS
     //           The  socket  is  nonblocking and the connection cannot be completed immedi?
     //           ately.  (UNIX domain sockets failed with EAGAIN instead.)  It  is  possible
@@ -328,18 +336,16 @@ int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
         return 0;
     else if(res != -1 || errno != EINPROGRESS)
         return res;
+
+    TOY_LOG_DEBUG << "connecting in EINPROGRESS";
     
     // 满足下面条件则往下走   
     //if(res == -1 && errno == EINPROGRESS) //TODO&& errno != EAGAIN 不用了，前面已经判断了是socket了，但没判断是TCPSocket啊 
-    static const int CONNECT_TIMEOUT = 10; //ms
+    static const int CONNECT_TIMEOUT = -1; //ms
     Toy::IOEvent revent;
     res = Toy::IOMultiplexing(fd_ctx, Toy::IOEvent::OUT, revent, CONNECT_TIMEOUT);
 
-    if(res == -1 || revent != Toy::IOEvent::OUT)
-    {
-        return -1;
-    }
-    else
+    if(res == -1 || revent == Toy::IOEvent::TIMEOUT)
     {
         errno = ETIMEDOUT;
         return -1;

@@ -1,4 +1,7 @@
 #include "FdContext.h"
+#include "Util.h"
+#include "Hook.h"
+#include <fcntl.h>
 #include <unistd.h>
 
 
@@ -16,12 +19,27 @@ FdContext::Ptr FdContext::clone(int newfd)
     if(newfd <= 0 || m_is_close)
         return nullptr;
     FdContext::Ptr ret_ctx = std::make_shared<FdContext>(newfd, m_fd_type, m_sock_attribute);
-    ret_ctx->m_is_nonblocking = m_is_nonblocking;
+    ret_ctx->setNonBlock(m_is_nonblocking);
     ret_ctx->m_is_close = m_is_close;
     ret_ctx->m_recv_timeout_us = m_recv_timeout_us;
     ret_ctx->m_send_timeout_us = m_send_timeout_us;
     // TODO: 注意不要漏了
     return ret_ctx;
+}
+
+void FdContext::setNonBlock(bool is_nonblocking)
+{
+    int flags = CallWithoutINTR<int>(fcntl_sys, m_fd, F_GETFL, 0);
+    bool old = flags & O_NONBLOCK;
+    if(old)
+        printf("nonblock\n");
+    else
+        printf("block\n");
+    if(old == is_nonblocking)
+        return;
+    CallWithoutINTR<int>(fcntl_sys, m_fd, F_SETFL, 
+        is_nonblocking ? (flags | O_NONBLOCK) : (flags & ~O_NONBLOCK));
+    m_is_nonblocking = is_nonblocking;
 }
 
 void FdContext::close()

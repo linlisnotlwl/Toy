@@ -47,12 +47,14 @@ public:
 
     // 触发对应事件，唤醒实体
     void trigger(Reactor * reactor, IOEvent trigger_event);
+
+    int getFd() const { return m_fd; };
 protected:
     void triggerEntryListWithoutLock(EntryList & entry_list);
     void addEntryWithoutLock(IOEvent new_add_event, const Entry & entry);
+    int m_fd;
 private:
     std::mutex m_mutex;
-    int m_fd;
     IOEvent m_event;
 
     EntryList m_in_elist;

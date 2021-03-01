@@ -176,7 +176,7 @@ private:
 	char * m_write_buf;
 
 	std::atomic<bool> m_is_running;
-	int m_wait_seconds;
+	//int m_wait_seconds;
 
 	std::thread m_thread;
 };

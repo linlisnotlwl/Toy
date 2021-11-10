@@ -33,7 +33,7 @@ struct LinkBase
 };
 
 template<typename T>
-class List : public Noncopyable
+class List : Noncopyable
 {
     static_assert((std::is_base_of<LinkBase, T>::value), "T must be base of LinkBase.");
 public:

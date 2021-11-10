@@ -2,6 +2,9 @@
 
 namespace Toy
 {
+// boost 表示它被用作私有继承
+// noncopyable不声明虚析构函数，即不被设计为公共继承链的基础。永远从它私有继承。
+// 一些讨论：https://stackoverflow.com/questions/5654330/privately-or-publicly-inherit-from-boostnon-copyable
 class Noncopyable
 {
 protected:

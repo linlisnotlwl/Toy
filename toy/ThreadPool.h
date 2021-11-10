@@ -16,7 +16,7 @@
 namespace Toy
 {
 
-class ThreadPool : public Noncopyable
+class ThreadPool : Noncopyable
 {
 public:
     typedef std::thread Thread;

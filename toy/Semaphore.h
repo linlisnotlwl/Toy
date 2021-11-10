@@ -7,7 +7,7 @@
 namespace Toy
 {
 
-class Semaphore : public Noncopyable
+class Semaphore : Noncopyable
 {
 public:
     Semaphore(int count = 0);

@@ -14,7 +14,7 @@ namespace Toy
 typedef std::function<void ()> CoFunction;
 class Cohandler;
 
-class Coroutine : public Noncopyable//, public LinkBase
+class Coroutine : Noncopyable//, public LinkBase
 {
     friend class Cohandler;
 public:

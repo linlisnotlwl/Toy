@@ -17,7 +17,7 @@
 
 
 #include "Singleton.h"
-#include "Buffer.h"
+#include "FixBuffer.h"
 
 #ifdef _WIN32
 	#define _CRT_SECURE_NO_WARNINGS
@@ -85,6 +85,8 @@ public:
 
 	std::string getStrThreadID() {
 		std::stringstream tempstr;
+		// TODO: static thread_local std::thread_id t_id =  std::this_thread::get_id();
+		// tempstr << t_id;
 		tempstr << std::this_thread::get_id();
 		return tempstr.str();
 	}

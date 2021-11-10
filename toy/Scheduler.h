@@ -19,7 +19,7 @@ class Cohandler;
 class Coroutine;
 typedef std::function<void ()> CoFunction;
 
-class Scheduler : public Noncopyable
+class Scheduler : Noncopyable
 {
 public:
     typedef std::shared_ptr<TimerWheel> TimerPtr;

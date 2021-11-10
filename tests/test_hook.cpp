@@ -82,7 +82,7 @@ static void test_sock()
        
     
     buff.resize(res);
-    TOY_LOG_INFO << "获取到的网页信息：" << buff;
+    TOY_LOG_INFO << "获取到的网页信息：\n" << buff;
     TOY_LOG_INFO << "--------------------test sock end-----------------------";
     TOY_CO_END;
 }

@@ -8,7 +8,7 @@
 namespace Toy
 {
 template<size_t SIZE>
-class FixBuffer : public Noncopyable
+class FixBuffer : Noncopyable
 {
 public:
     typedef std::function<void()> CallBack;

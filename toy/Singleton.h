@@ -26,123 +26,131 @@ private:
 
 
 // (2) using call_once (C++11 support)	 // same as pthread_once()
-// template<typename T>
-// class Singleton : Noncopyable
-// {
-// public:
-// 	typedef std::unique_ptr<T> Ptr;
-//     static T & getInstance()
-//     {
-//         static std::once_flag flag;
-// 		//static Ptr m_instance_ptr;
-// 		// it can only use default construct of class T.
-// 		// if we want to use other construct,
-// 		// we can add another level of indirection with template specialization.
-// 		std::call_once(flag, []() { m_instance_ptr.reset(new T()); });
+#if 0
+template<typename T>
+class Singleton : Noncopyable
+{
+public:
+	typedef std::unique_ptr<T> Ptr;
+    static T & getInstance()
+    {
+        static std::once_flag flag;
+		//static Ptr m_instance_ptr;
+		// it can only use default construct of class T.
+		// if we want to use other construct,
+		// we can add another level of indirection with template specialization.
+		std::call_once(flag, []() { m_instance_ptr.reset(new T()); });
 
-//         // Note: It could be nullptr after destructing.
-//         // So it will occur some bug in multi-threads because of the uncertain sequence of destructing.
-//         // 出现异常的情况：
-//         // 如果是一个静态对象，其中调用了该单例对象，则在程序结束时可能会出现nullptr，取决于静态对象的析构顺序
-//         // 所以暂时选择了方法（一）
-//         assert(m_instance_ptr != nullptr); 
+        // Note: It could be nullptr after destructing.
+        // So it will occur some bug in multi-threads because of the uncertain sequence of destructing.
+        // 出现异常的情况：
+        // 如果是一个静态对象，其中调用了该单例对象，则在程序结束时可能会出现nullptr，取决于静态对象的析构顺序
+        // 所以暂时选择了方法（一）
+        assert(m_instance_ptr != nullptr); 
 
-//         return *m_instance_ptr;
-//     }
-// private:
-//     static Ptr m_instance_ptr;
-//     Singleton() = default;
-//     ~Singleton() = default;
-// };
-// template<typename T>
-// typename Singleton<T>::Ptr Singleton<T>::m_instance_ptr = nullptr;
-
+        return *m_instance_ptr;
+    }
+private:
+    static Ptr m_instance_ptr;
+    Singleton() = default;
+    ~Singleton() = default;
+};
+template<typename T>
+typename Singleton<T>::Ptr Singleton<T>::m_instance_ptr = nullptr;
+#endif
 
 //// (3) eager initialize : initialize at the very first beginning
-//template<typename T>
-//class Singleton : Noncopyable
-//{
-//public:
-//	typedef std::unique_ptr<T> Ptr;
-//	static T & getInstance()
-//	{
-//		return *m_instance_ptr;
-//	}
-//private:
-//	static Ptr m_instance_ptr;
-//	Singleton() = default;
-//	~Singleton() = default;
-//};
-//template<typename T>
-//typename Singleton<T>::Ptr Singleton<T>::m_instance_ptr = std::unique_ptr<T>(new T());
+#if 0
+template<typename T>
+class Singleton : Noncopyable
+{
+public:
+	typedef std::unique_ptr<T> Ptr;
+	static T & getInstance()
+	{
+		return *m_instance_ptr;
+	}
+private:
+	static Ptr m_instance_ptr;
+	Singleton() = default;
+	~Singleton() = default;
+};
+template<typename T>
+typename Singleton<T>::Ptr Singleton<T>::m_instance_ptr = std::unique_ptr<T>(new T());
+#endif
 
 // (4) using C++11 memory model : memory fence(Killing a chicken with ox kinfe. ^-^)
 //// Normal DCLP : It's not thread-safe in some mutil-core platform.
 //// http://www.aristeia.com/Papers/DDJ_Jul_Aug_2004_revised.pdf
-//template<typename T>
-//class Singleton : Noncopyable
-//{
-//public:
-//	typedef std::unique_ptr<T> Ptr;
-//	static T & getInstance()
-//	{
-//		if (m_instance_ptr == nullptr)
-//		{
-//			std::unique_lock<std::mutex> lock(m_mutex);
-//			if (m_instance_ptr == nullptr)
-//			{
-//				m_instance_ptr.reset(new T());
-//			}
-//		}
-//		assert(m_instance_ptr != nullptr);
-//		return *m_instance_ptr;
-//	}
-//private:
-//	Singleton() = default;
-//	~Singleton() = default;
-//	static Ptr m_instance_ptr;
-//	static std::mutex m_mutex;
-//};
-//template<typename T>
-//typename Singleton<T>::Ptr Singleton<T>::m_instance_ptr = nullptr;
-//template<typename T>
-//std::mutex Singleton<T>::m_mutex;
+#if 0
+template<typename T>
+class Singleton : Noncopyable
+{
+public:
+	typedef std::unique_ptr<T> Ptr;
+	static T & getInstance()
+	{
+		if (m_instance_ptr == nullptr)
+		{
+			std::unique_lock<std::mutex> lock(m_mutex);
+			if (m_instance_ptr == nullptr)
+			{
+				m_instance_ptr.reset(new T());
+			}
+		}
+		assert(m_instance_ptr != nullptr);
+		return *m_instance_ptr;
+	}
+private:
+	Singleton() = default;
+	~Singleton() = default;
+	static Ptr m_instance_ptr;
+	static std::mutex m_mutex;
+};
+template<typename T>
+typename Singleton<T>::Ptr Singleton<T>::m_instance_ptr = nullptr;
+template<typename T>
+std::mutex Singleton<T>::m_mutex;
+#endif
+
 
 // Improve DCLP with C++ memory barrier.
-//template<typename T>
-//class Singleton : Noncopyable
-//{
-//public:
-//	//typedef std::shared_ptr<T> Ptr;
-//	static T & getInstance()
-//	{
-//		T * temp = m_instance_ptr.load(std::memory_order_relaxed);
-//		std::atomic_thread_fence(std::memory_order_acquire);
-//
-//			if (temp == nullptr)
-//			{
-//				std::unique_lock<std::mutex> lock(m_mutex);
-//				temp = m_instance_ptr.load(std::memory_order_relaxed);
-//				if (temp == nullptr)
-//				{
-//					temp = new T();
-//					std::_Atomic_thread_fence(std::memory_order_release);
-//					m_instance_ptr.store(temp, std::memory_order_relaxed);
-//				}
-//			}
-//		assert(temp != nullptr);
-//		return *temp;
-//	}
-//private:
-//	Singleton() = default;
-//	~Singleton() = default;
-//	static std::atomic<T *> m_instance_ptr;
-//	static std::mutex m_mutex;
-//};
-//template<typename T>
-//std::atomic<T *> Singleton<T>::m_instance_ptr = nullptr;
-//template<typename T>
-//std::mutex Singleton<T>::m_mutex;
+#if 0
+template<typename T>
+class Singleton : Noncopyable
+{
+public:
+	//typedef std::shared_ptr<T> Ptr;
+	static T & getInstance()
+	{
+		T * temp = m_instance_ptr.load(std::memory_order_relaxed);
+		std::atomic_thread_fence(std::memory_order_acquire);
+
+			if (temp == nullptr)
+			{
+				std::unique_lock<std::mutex> lock(m_mutex);
+				temp = m_instance_ptr.load(std::memory_order_relaxed);
+				if (temp == nullptr)
+				{
+					temp = new T();
+					std::_Atomic_thread_fence(std::memory_order_release);
+					m_instance_ptr.store(temp, std::memory_order_relaxed);
+				}
+			}
+		assert(temp != nullptr);
+		return *temp;
+	}
+private:
+	Singleton() = default;
+	~Singleton() = default;
+	static std::atomic<T *> m_instance_ptr;
+	static std::mutex m_mutex;
+};
+template<typename T>
+std::atomic<T *> Singleton<T>::m_instance_ptr = nullptr;
+template<typename T>
+std::mutex Singleton<T>::m_mutex;
+#endif 
 
 // Newest version(only support by C++20) using shared_ptr: 
 //	Becasue atomic<T> requires T to be trivially copyable;
@@ -158,40 +166,41 @@ private:
 //		6.Trivial non - deleted destructor
 //		This implies that the class has no virtual functions or virtual base classes.
 //		Scalar types and arrays of TriviallyCopyable objects are TriviallyCopyable as well.
+#if 0
+template<typename T>
+class Singleton : Noncopyable
+{
+public:
+	typedef std::shared_ptr<T> Ptr;
+	static T & getInstance()
+	{
+		Ptr temp = m_instance_ptr.load(std::memory_order_relaxed);
+		std::atomic_thread_fence(std::memory_order_acquire);
 
-//template<typename T>
-//class Singleton : Noncopyable
-//{
-//public:
-//	typedef std::shared_ptr<T> Ptr;
-//	static T & getInstance()
-//	{
-//		Ptr temp = m_instance_ptr.load(std::memory_order_relaxed);
-//		std::atomic_thread_fence(std::memory_order_acquire);
-//
-//		if (temp == nullptr)
-//		{
-//			std::unique_lock<std::mutex> lock(m_mutex);
-//			temp = m_instance_ptr.load(std::memory_order_relaxed);
-//			if (temp == nullptr)
-//			{
-//				temp = Ptr(new T());
-//				std::_Atomic_thread_fence(std::memory_order_release);
-//				m_instance_ptr.store(temp, std::memory_order_relaxed);
-//			}
-//		}
-//		assert(temp != nullptr);
-//		return *temp;
-//	}
-//private:
-//	Singleton() = default;
-//	~Singleton() = default;
-//	static std::atomic<Ptr> m_instance_ptr;
-//	static std::mutex m_mutex;
-//};
-//template<typename T>
-//std::atomic<std::shared_ptr<T>> Singleton<T>::m_instance_ptr = nullptr;
-//template<typename T>
-//std::mutex Singleton<T>::m_mutex;
+		if (temp == nullptr)
+		{
+			std::unique_lock<std::mutex> lock(m_mutex);
+			temp = m_instance_ptr.load(std::memory_order_relaxed);
+			if (temp == nullptr)
+			{
+				temp = Ptr(new T());
+				std::_Atomic_thread_fence(std::memory_order_release);
+				m_instance_ptr.store(temp, std::memory_order_relaxed);
+			}
+		}
+		assert(temp != nullptr);
+		return *temp;
+	}
+private:
+	Singleton() = default;
+	~Singleton() = default;
+	static std::atomic<Ptr> m_instance_ptr;
+	static std::mutex m_mutex;
+};
+template<typename T>
+std::atomic<std::shared_ptr<T>> Singleton<T>::m_instance_ptr = nullptr;
+template<typename T>
+std::mutex Singleton<T>::m_mutex;
+#endif
 
 }// namespace Toy

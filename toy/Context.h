@@ -7,7 +7,7 @@ namespace Toy
 static const size_t MAX_STACK_SIZE =  1024 * 1024; //bytes
 static const size_t DEFAULT_STACK_SIZE = 128 * 1024;
 
-class Context : public Noncopyable
+class Context : Noncopyable
 {
 public:
     typedef ucontext_t ContextType;

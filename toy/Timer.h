@@ -106,7 +106,7 @@ static constexpr uint64_t MAX_TICK = UINT64_MAX; // very big: 256^8
  * @brief 时间轮计时器
  * 
  */
-class TimerWheel : public Noncopyable
+class TimerWheel : Noncopyable
 {
 public:
 	typedef std::vector<Wheel::Ptr> WheelGroup;

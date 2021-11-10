@@ -16,7 +16,7 @@ namespace Toy
 
 class Scheduler;
 class Coroutine;
-class Cohandler : public Noncopyable
+class Cohandler : Noncopyable
 {
     friend class Scheduler;
 public:
